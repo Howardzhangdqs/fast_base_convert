@@ -512,8 +512,9 @@ class BenchmarkApp {
 
   private getDigitRepresentation(value: number): string {
     if (value < 10) return value.toString();
-    if (value < 36) return String.fromCharCode(65 + value - 10); // A-Z
-    return String.fromCharCode(97 + value - 36); // a-z
+    if (value < 36) return String.fromCharCode(65 + value - 10); // A-Z (10-35)
+    if (value < 62) return String.fromCharCode(97 + value - 36); // a-z (36-61)
+    return `[${value}]`;
   }
 
   private getBaseExamples(base: number, _caseType: 'lower' | 'upper' | 'mixed'): string {
@@ -587,8 +588,13 @@ class BenchmarkApp {
     let result = 0n;
 
     for (let i = 0; i < str.length; i++) {
-      const char = str[i].toLowerCase();
-      const value = chars.indexOf(char);
+      const char = str[i];
+      let value = chars.indexOf(char);
+
+      // Try lowercase if uppercase not found
+      if (value === -1) {
+        value = chars.indexOf(char.toLowerCase());
+      }
 
       if (value === -1 || value >= base) {
         throw new Error(`Invalid digit "${char}" for base ${base}`);
@@ -629,7 +635,7 @@ class BenchmarkApp {
     if (digits.length === 0) return '0';
     if (digits.length === 1 && digits[0] === 0) return '0';
 
-    const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = '';
 
     for (let i = digits.length - 1; i >= 0; i--) {
@@ -637,6 +643,8 @@ class BenchmarkApp {
       if (digit < 10) {
         result += digit.toString();
       } else if (digit < 36) {
+        result += chars[digit];
+      } else if (digit < 62) {
         result += chars[digit];
       } else {
         result += `[${digit}]`;
