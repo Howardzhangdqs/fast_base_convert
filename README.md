@@ -1,97 +1,144 @@
 # Fast Base Convert
 
-A high-performance base conversion library focused on algorithmic optimization.
+一个高性能的基数转换库，专注于算法层面的优化。支持Rust本地使用和WebAssembly浏览器运行。
 
-## Features
+## 🚀 特性
 
-- Supports arbitrary base conversion (2-65536)
-- Multiple optimization strategies:
-  - **Bitwise Optimization**: Direct shift operations for power-of-two bases
-  - **u128 Fast Path**: 128-bit integer operations for small numbers
-  - **Aligned Base Optimization**: Grouped conversion using prime factorization
-  - **Baseline Algorithm**: Standard division algorithm for large numbers
+- 支持任意进制转换（2-65536）
+- 四种优化策略：
+  - **位运算优化**：2的幂进制使用直接位移操作
+  - **u128快速路径**：小数字使用128位整数运算
+  - **对齐进制优化**：使用质因数分解分组转换
+  - **基准算法**：大数字使用标准除法算法
+- **WebAssembly支持**：在浏览器中运行高性能基准测试
+- **交互式前端**：现代Web界面展示性能对比
 
-## Performance Benchmark Results
+## 📊 性能基准测试结果
 
-### Algorithm Optimization Effects
-- **Bitwise Optimization** (power-of-two bases): **6.23x** speedup
-- **u128 Fast Path** (small numbers): **3.53x** speedup
-- **Aligned Base Optimization** (aligned bases): **2.98x** speedup
-- **Baseline Division** (general case): baseline implementation
+### 算法优化效果
+- **位运算优化**（2的幂进制）：**6.23倍**加速 ⭐⭐⭐⭐⭐
+- **u128快速路径**（小数字）：**3.53倍**加速 ⭐⭐⭐⭐
+- **对齐进制优化**（对齐进制）：**2.98倍**加速 ⭐⭐⭐
+- **基础除法**（通用情况）：基准实现
 
-### Test Conditions
-- Each test runs for ≥1 second
-- Compared against real baseline version
-- All 25 unit tests + 6 integration tests passed
+### 测试条件
+- 每项测试执行时间≥1秒
+- 使用真实基准版本对比
+- 25个单元测试 + 6个集成测试全部通过
 
-## Usage
+## 🛠️ 安装和使用
+
+### Rust库使用
 
 ```rust
 use fast_base_convert::{convert_base, convert_base_baseline};
 
-// Automatic optimized conversion
+// 自动优化转换
 let input = vec![5, 4, 3, 2, 1]; // 12345 in base 10
 let result = convert_base(&input, 10, 16);
 
-// Baseline conversion
+// 基准转换
 let baseline_result = convert_base_baseline(&input, 10, 16);
 
-// Result: [9, 3, 0, 3] (0x3039 in hex)
+// 结果: [9, 3, 0, 3] (0x3039 in hex)
 ```
 
-## Run Tests
+### Web前端使用
+
+访问 [GitHub Pages](https://howardzhangdqs.github.io/fast_base_convert/) 直接在浏览器中运行基准测试！
+
+### 本地运行Web前端
 
 ```bash
-cargo test                          # Unit tests + integration tests
-cargo run --example benchmark        # Standard performance benchmark
-cargo run --example algorithm_benchmark  # Algorithm-specific benchmark
+# 1. 构建WebAssembly模块
+wasm-pack build --target web --out-dir www/pkg --release
+
+# 2. 安装前端依赖
+cd www
+npm install
+
+# 3. 启动开发服务器
+npm run dev
 ```
 
-## Optimization Strategies Explained
+访问 http://localhost:3000
 
-### 1. Bitwise Optimization (6.23x speedup)
-- **Applicable Scenario**: Power-of-two base conversion (e.g. 16→8, 32→2)
-- **Algorithm**: Use shift operations instead of division
-- **Complexity**: Reduced from O(n) to O(1)
+## 🧪 运行测试
 
-### 2. u128 Fast Path (3.53x speedup)
-- **Applicable Scenario**: Numbers that fit in 128 bits
-- **Algorithm**: Direct hardware integer operations
-- **Advantage**: Avoids big integer overhead
-
-### 3. Aligned Base Optimization (2.98x speedup)
-- **Applicable Scenario**: Bases satisfying n^a = m^b (e.g. 4²=16)
-- **Algorithm**: Grouped conversion via prime factorization
-- **Advantage**: Reduces iteration count
-
-### 4. Baseline Division Algorithm
-- **Applicable Scenario**: General case and large numbers
-- **Algorithm**: Standard division and remainder algorithm
-
-## Project Structure
-
-```
-src/
-├── lib.rs          # Library entry
-├── baseline.rs     # Baseline algorithm implementation
-├── optimized.rs    # Optimized algorithm implementation
-└── utils.rs        # Utility functions
-
-examples/
-├── benchmark.rs           # Standard performance benchmark
-└── algorithm_benchmark.rs # Algorithm-specific benchmark
-
-tests/
-└── integration_tests.rs   # Integration tests
+```bash
+cargo test                          # 单元测试 + 集成测试
+cargo run --example benchmark        # 标准性能测试
+cargo run --example algorithm_benchmark  # 算法特定基准测试
 ```
 
-## Technical Highlights
+## 📁 项目结构
 
-- **Algorithmic Complexity Optimization**: Prioritizes improving time complexity over constant factors
-- **Fast Path Detection**: Handles common cases first
-- **Comprehensive Testing**: Unit tests + integration tests + performance benchmarks
-- **Educational Value**: Demonstrates which optimizations are truly effective
+```
+├── src/                    # Rust源代码
+│   ├── lib.rs             # 库入口
+│   ├── baseline.rs        # 基础算法实现
+│   ├── optimized.rs       # 优化算法实现
+│   ├── utils.rs           # 工具函数
+│   └── wasm.rs            # WebAssembly接口
+├── www/                   # Web前端
+│   ├── src/               # TypeScript源码
+│   ├── dist/              # 构建输出
+│   ├── pkg/               # WebAssembly包
+│   └── index.html         # 主页面
+├── examples/              # 示例
+│   ├── benchmark.rs       # 标准性能测试
+│   └── algorithm_benchmark.rs # 算法基准测试
+├── tests/                 # 集成测试
+├── report/               # 学术论文
+└── .github/workflows/    # CI/CD配置
+```
 
-## License
+## 🎯 优化策略详解
 
-MIT
+### 1. 位运算优化 (6.23x加速)
+- **适用场景**：2的幂进制转换（如16→8, 32→2）
+- **算法**：使用位移操作代替除法
+- **复杂度**：从O(n·cost_division)降到O(n·cost_bit_ops)
+
+### 2. u128快速路径 (3.53x加速)
+- **适用场景**：能放入128位的小数字
+- **算法**：直接使用硬件整数运算
+- **优势**：避免大数运算开销
+
+### 3. 对齐进制优化 (2.98x加速)
+- **适用场景**：进制满足n^a = m^b关系（如4²=16）
+- **算法**：质因数分解分组转换
+- **优势**：减少迭代次数
+
+### 4. 基础除法算法
+- **适用场景**：通用情况和大数字
+- **算法**：标准除法取余算法
+- **特点**：无伪优化，诚实实现
+
+## 💡 技术亮点
+
+- **算法复杂度优化**：优先改进时间复杂度而非常数因子
+- **快速路径检测**：常见情况优先处理
+- **诚实的设计**：无效优化直接使用基准实现
+- **WebAssembly集成**：Rust性能 + Web可达性
+- **全面测试**：单元测试 + 集成测试 + 性能基准测试
+- **教育价值**：展示哪些优化真正有效
+
+## 📚 学术论文
+
+项目包含完整的学术论文，位于 `report/` 目录：
+- **paper.tex**: LaTeX源文件
+- **references.bib**: 参考文献
+- 详细的技术分析和伪代码
+
+## 🔗 部署
+
+项目使用GitHub Actions自动部署到GitHub Pages：
+- 每次推送到main分支自动构建和部署
+- Rust编译到WebAssembly
+- TypeScript/Vite前端构建
+- 零配置部署流程
+
+## 📝 许可证
+
+MIT OR Apache-2.0

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fast Base Convert</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      width: 100%;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+    }
+
+    header p {
+      font-size: 1.125rem;
+      color: #666;
+    }
+
+    .section {
+      background: white;
+      padding: 40px;
+      margin-bottom: 30px;
+      border: 1px solid #e5e5e5;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 25px;
+      color: #1a1a1a;
+    }
+
+    .presets {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      padding: 8px 20px;
+      background: white;
+      border: 1px solid #d0d0d0;
+      border-radius: 0;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+      background: #f8f8f8;
+      color: #333;
+      border-color: #b0b0b0;
+    }
+
+    .preset-btn.active {
+      background: #333;
+      color: white;
+      border-color: #333;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+
+    .control {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      padding: 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 0;
+      font-size: 16px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #333;
+    }
+
+    .actions {
+      display: flex;
+      gap: 15px;
+    }
+
+    button {
+      background: #333;
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background: #555;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #f0f0f0;
+      border-top: 3px solid #333;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    @media (min-width: 640px) {
+      .results-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .result-card {
+      background: white;
+      padding: 30px;
+      border: 1px solid #e5e5e5;
+    }
+
+    .result-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #1a1a1a;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .metric:last-child {
+      border-bottom: none;
+    }
+
+    .metric-label {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .metric-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .speedup {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin: 25px 0;
+      padding: 20px;
+      background: #f8f8f8;
+      border-radius: 0;
+    }
+
+    .speedup.positive {
+      color: #2e7d32;
+    }
+
+    .speedup.negative {
+      color: #dc3545;
+    }
+
+    .chart-container {
+      background: white;
+      border: 1px solid #e5e5e5;
+      padding: 30px;
+      min-height: 200px;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+    }
+
+    .chart-bar {
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .bar {
+      margin-bottom: 8px;
+      background: #e0e0e0;
+      transition: height 0.3s ease;
+    }
+
+    .bar-baseline {
+      background: #667eea;
+    }
+
+    .bar-optimized {
+      background: #2e7d32;
+    }
+
+    .bar-value {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .bar-label {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .error {
+      background: #fef2f2;
+      color: #d32f2f;
+      padding: 20px;
+      border: 1px solid #f5c6cb;
+      border-radius: 0;
+    }
+
+    .success {
+      background: #f1f8e9;
+      color: #2e7d32;
+      padding: 20px;
+      border: 1px solid #c8e6c9;
+      border-radius: 0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px 15px;
+      }
+
+      header h1 {
+        font-size: 2rem;
+      }
+
+      header p {
+        font-size: 1rem;
+      }
+
+      .section {
+        padding: 30px 20px;
+      }
+
+      .controls-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-DSc3OikG.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Fast Base Convert</h1>
+      <p>High-performance base conversion algorithms with WebAssembly</p>
+    </header>
+
+    <main>
+      <section class="section">
+        <h2 class="section-title">Test Configuration</h2>
+
+        <div class="presets">
+          <button class="preset-btn active" data-preset="small">Small Numbers</button>
+          <button class="preset-btn" data-preset="power2">Power of Two</button>
+          <button class="preset-btn" data-preset="aligned">Aligned Bases</button>
+          <button class="preset-btn" data-preset="large">Large Numbers</button>
+          <button class="preset-btn" data-preset="custom">Custom</button>
+        </div>
+
+        <div class="controls-grid">
+          <div class="control">
+            <label for="iterations">Iterations</label>
+            <input type="number" id="iterations" value="100000" min="1000" max="10000000" step="1000">
+          </div>
+
+          <div class="control">
+            <label for="fromBase">From Base</label>
+            <input type="number" id="fromBase" value="10" min="2" max="65536">
+          </div>
+
+          <div class="control">
+            <label for="toBase">To Base</label>
+            <input type="number" id="toBase" value="16" min="2" max="65536">
+          </div>
+
+          <div class="control">
+            <label for="inputNumber">Input Number</label>
+            <input type="text" id="inputNumber" value="12345" placeholder="Enter number">
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="runBenchmark">Run Benchmark</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <p>Running benchmark...</p>
+        </div>
+
+        <div id="error" class="error hidden"></div>
+      </section>
+
+      <section class="section results hidden" id="resultsSection">
+        <h2 class="section-title">Results</h2>
+
+        <div class="results-grid">
+          <div class="result-card">
+            <h3 class="result-title">Performance</h3>
+            <div class="metric">
+              <span class="metric-label">Baseline Time</span>
+              <span class="metric-value" id="baselineTime">-</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Optimized Time</span>
+              <span class="metric-value" id="optimizedTime">-</span>
+            </div>
+            <div class="speedup" id="speedup">
+              Calculating...
+            </div>
+          </div>
+
+          <div class="result-card">
+            <h3 class="result-title">Details</h3>
+            <div class="metric">
+              <span class="metric-label">Test Type</span>
+              <span class="metric-value" id="testType">-</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Input Size</span>
+              <span class="metric-value" id="inputDigits">-</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Status</span>
+              <span class="metric-value" id="correctness">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-container" id="chartContainer" style="display: none;">
+          <div class="chart-bar">
+            <div class="bar bar-baseline" id="baselineBar" style="height: 0px;"></div>
+            <div class="bar-value" id="baselineValue">0 ms</div>
+            <div class="bar-label">Baseline</div>
+          </div>
+          <div class="chart-bar">
+            <div class="bar bar-optimized" id="optimizedBar" style="height: 0px;"></div>
+            <div class="bar-value" id="optimizedValue">0 ms</div>
+            <div class="bar-label">Optimized</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+</body>
+</html>
