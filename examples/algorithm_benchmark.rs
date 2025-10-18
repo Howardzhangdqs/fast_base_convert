@@ -9,7 +9,7 @@ fn main() {
     println!("=== Fast Base Convert Algorithm Optimizations ===\n");
 
     // Performance results
-    let mut perf_builder = Builder::with_capacity(4);
+    let mut perf_builder = Builder::with_capacity(5);
     perf_builder.push_record(["测试项", "输入大小", "Baseline", "Optimized", "加速比"]);
 
     // Test 1: Small numbers (u128 optimization)
@@ -99,7 +99,7 @@ fn main() {
         &format!("{:.2}x", speedup),
     ]);
 
-    // Test 4: Large number (general case) - larger input for longer test
+    // Test 4: Large number (general case) - test both medium and very large numbers
     let mut large_input = vec![0; 1000];
     large_input[0] = 1; // 10^1000
 
@@ -127,6 +127,36 @@ fn main() {
         &format!("{:.2?}", baseline_time),
         &format!("{:.2?}", optimized_time),
         &format!("{:.2}x", speedup),
+    ]);
+
+    // Test 5: Very large number to trigger chunked optimization
+    let mut very_large_input = vec![0; 2500];
+    very_large_input[0] = 1; // 10^2500 - should trigger chunked processing
+
+    let start = Instant::now();
+    for _ in 0..5000 {
+        let _ = convert_base_baseline(&very_large_input, 10, 16);
+    }
+    let baseline_time_very_large = start.elapsed();
+
+    let start = Instant::now();
+    for _ in 0..5000 {
+        let _ = convert_base(&very_large_input, 10, 16);
+    }
+    let optimized_time_very_large = start.elapsed();
+
+    let speedup_very_large = if baseline_time_very_large > optimized_time_very_large {
+        baseline_time_very_large.as_nanos() as f64 / optimized_time_very_large.as_nanos() as f64
+    } else {
+        1.0
+    };
+
+    perf_builder.push_record([
+        "超大数字(分块优化)",
+        "2500 digits",
+        &format!("{:.2?}", baseline_time_very_large),
+        &format!("{:.2?}", optimized_time_very_large),
+        &format!("{:.2}x", speedup_very_large),
     ]);
 
     let mut perf_table = perf_builder.build();

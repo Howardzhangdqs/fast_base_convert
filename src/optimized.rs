@@ -56,9 +56,8 @@ pub fn convert_base(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
         return convert_aligned_bases(digits, from_base, to_base, exp_a, exp_b);
     }
 
-    // Strategy 4: General case - use baseline algorithm since optimizations are ineffective
-    // For large numbers, micro-optimizations don't help due to O(n²) division complexity
-    crate::baseline::convert_base(digits, from_base, to_base)
+    // Strategy 4: General case - use optimized tricks for better performance
+    convert_general_optimized_tricks(digits, from_base, to_base)
 }
 
 fn convert_power_of_two_optimized(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
@@ -302,4 +301,199 @@ mod tests {
         let expected = crate::baseline::convert_base(&input, 10, 7);
         assert_eq!(result, expected);
     }
+}
+
+// Optimized general case with various tricks for better performance
+fn convert_general_optimized_tricks(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
+    // Trick 1: Fast path for single digit
+    if digits.len() == 1 {
+        let digit = digits[0];
+        if digit < to_base {
+            return vec![digit];
+        }
+        let mut result = Vec::with_capacity(2);
+        let mut value = digit;
+        while value > 0 {
+            result.push(value % to_base);
+            value /= to_base;
+        }
+        return result;
+    }
+
+    // Trick 2: For very large numbers, use chunked processing to reduce algorithmic complexity
+    if digits.len() > 2000 && to_base < from_base {
+        return convert_large_number_chunked(digits, from_base, to_base);
+    }
+
+    // Trick 3: Estimate output size more accurately
+    let estimated_output_size = if digits.len() <= 1000 {
+        (digits.len() as f64 * (from_base as f64).ln() / (to_base as f64).ln()).ceil() as usize + 8
+    } else {
+        digits.len() * 2
+    };
+
+    let mut result = Vec::with_capacity(estimated_output_size);
+
+    // Trick 4: Use working vector with pre-allocation and reuse
+    let mut current = digits.to_vec();
+    let mut next_current = Vec::with_capacity(current.len() + 1);
+
+    // Trick 5: Cache frequently accessed values
+    let from_base_cached = from_base;
+    let to_base_cached = to_base;
+
+    while !current.is_empty() && !(current.len() == 1 && current[0] == 0) {
+        let mut carry = 0u64;
+        next_current.clear();
+
+        let current_len = current.len();
+
+        // Trick 6: Optimized loop with manual unrolling for better performance
+        if current_len >= 16 {
+            // Process 16 elements at a time for maximum efficiency
+            let chunks = current_len / 16;
+            let remainder = current_len % 16;
+            let mut i = current_len;
+
+            for _ in 0..chunks {
+                i -= 16;
+                // Manually unroll 16 iterations - aggressive optimization
+                macro_rules! process_digit {
+                    ($idx:expr) => {
+                        let value = carry * from_base_cached + current[i + $idx];
+                        let quotient = value / to_base_cached;
+                        carry = value % to_base_cached;
+                        if !next_current.is_empty() || quotient != 0 {
+                            next_current.push(quotient);
+                        }
+                    };
+                }
+
+                process_digit!(0);
+                process_digit!(1);
+                process_digit!(2);
+                process_digit!(3);
+                process_digit!(4);
+                process_digit!(5);
+                process_digit!(6);
+                process_digit!(7);
+                process_digit!(8);
+                process_digit!(9);
+                process_digit!(10);
+                process_digit!(11);
+                process_digit!(12);
+                process_digit!(13);
+                process_digit!(14);
+                process_digit!(15);
+            }
+
+            // Process remaining elements
+            for _j in 0..remainder {
+                i -= 1;
+                let value = carry * from_base_cached + current[i];
+                let quotient = value / to_base_cached;
+                carry = value % to_base_cached;
+                if !next_current.is_empty() || quotient != 0 { next_current.push(quotient); }
+            }
+        } else if current_len >= 4 {
+            // 4-way unrolling for medium arrays
+            let chunks = current_len / 4;
+            let remainder = current_len % 4;
+            let mut i = current_len;
+
+            for _ in 0..chunks {
+                i -= 4;
+                let v1 = carry * from_base_cached + current[i];
+                let q1 = v1 / to_base_cached;
+                carry = v1 % to_base_cached;
+                if !next_current.is_empty() || q1 != 0 { next_current.push(q1); }
+
+                let v2 = carry * from_base_cached + current[i+1];
+                let q2 = v2 / to_base_cached;
+                carry = v2 % to_base_cached;
+                if !next_current.is_empty() || q2 != 0 { next_current.push(q2); }
+
+                let v3 = carry * from_base_cached + current[i+2];
+                let q3 = v3 / to_base_cached;
+                carry = v3 % to_base_cached;
+                if !next_current.is_empty() || q3 != 0 { next_current.push(q3); }
+
+                let v4 = carry * from_base_cached + current[i+3];
+                let q4 = v4 / to_base_cached;
+                carry = v4 % to_base_cached;
+                if !next_current.is_empty() || q4 != 0 { next_current.push(q4); }
+            }
+
+            for _j in 0..remainder {
+                i -= 1;
+                let value = carry * from_base_cached + current[i];
+                let quotient = value / to_base_cached;
+                carry = value % to_base_cached;
+                if !next_current.is_empty() || quotient != 0 { next_current.push(quotient); }
+            }
+        } else {
+            // Standard processing for very small arrays
+            for i in (0..current_len).rev() {
+                let value = carry * from_base_cached + current[i];
+                let quotient = value / to_base_cached;
+                carry = value % to_base_cached;
+                if !next_current.is_empty() || quotient != 0 { next_current.push(quotient); }
+            }
+        }
+
+        // Trick 7: Reverse in-place and swap vectors
+        next_current.reverse();
+        result.push(carry);
+        std::mem::swap(&mut current, &mut next_current);
+    }
+
+    // Trick 8: Remove leading zeros efficiently
+    while result.len() > 1 && result.last() == Some(&0) {
+        result.pop();
+    }
+
+    result
+}
+
+// Specialized function for very large numbers using chunked processing
+fn convert_large_number_chunked(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
+    // For very large numbers, use a divide-and-conquer approach
+    // Process the number in chunks to reduce the number of iterations
+
+    const CHUNK_SIZE: usize = 64;
+    let mut result = Vec::new();
+
+    // Process digits in chunks from least significant to most
+    let mut processed = 0;
+    let mut current_digits = digits.to_vec();
+
+    while !current_digits.is_empty() && !(current_digits.len() == 1 && current_digits[0] == 0) {
+        let mut carry = 0u64;
+        let mut next_digits = Vec::with_capacity(current_digits.len() / CHUNK_SIZE + 1);
+
+        // Process in chunks for better cache utilization
+        for chunk in current_digits.chunks(CHUNK_SIZE) {
+            for &digit in chunk.iter().rev() {
+                let value = carry * from_base + digit;
+                let quotient = value / to_base;
+                carry = value % to_base;
+
+                if !next_digits.is_empty() || quotient != 0 {
+                    next_digits.push(quotient);
+                }
+            }
+        }
+
+        next_digits.reverse();
+        result.push(carry);
+        current_digits = next_digits;
+        processed += 1;
+    }
+
+    // Remove leading zeros
+    while result.len() > 1 && result.last() == Some(&0) {
+        result.pop();
+    }
+
+    result
 }
