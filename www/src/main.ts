@@ -129,6 +129,8 @@ class BenchmarkApp {
     const inputBase = document.getElementById('inputBase') as HTMLInputElement;
     const outputBase = document.getElementById('outputBase') as HTMLInputElement;
 
+    console.log(inputBase);
+
     if (convertBtn) convertBtn.addEventListener('click', () => this.performConversion());
     if (clearBtn) clearBtn.addEventListener('click', () => this.clearConversion());
     if (inputNumber) {
@@ -476,8 +478,11 @@ class BenchmarkApp {
   }
 
   private updateBaseHint(baseType: 'fromBase' | 'toBase') {
-    const input = document.getElementById(baseType) as HTMLInputElement;
-    const hint = document.getElementById(baseType === 'fromBase' ? 'fromBaseHint' : 'toBaseHint');
+    const inputId = baseType === 'fromBase' ? 'inputBase' : 'outputBase';
+    const hintId = baseType === 'fromBase' ? 'fromBaseHint' : 'toBaseHint';
+
+    const input = document.getElementById(inputId) as HTMLInputElement;
+    const hint = document.getElementById(hintId);
 
     if (!input || !hint) {
       // Elements might not exist if not on converter tab
