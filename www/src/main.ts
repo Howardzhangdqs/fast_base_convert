@@ -9,255 +9,229 @@ interface BenchmarkResult {
   is_correct: boolean;
 }
 
+interface TestCase {
+  name: string;
+  type: string;
+  description: string;
+  iterations: number;
+  inputDigits: number[];
+  fromBase: number;
+  toBase: number;
+}
+
 class BenchmarkApp {
-  private currentPreset: string = 'small';
+  private benchmarkTests: TestCase[] = [
+    {
+      name: "Small Number",
+      type: "small-number",
+      description: "12345 (10→16)",
+      iterations: 100000,
+      inputDigits: [5, 4, 3, 2, 1],
+      fromBase: 10,
+      toBase: 16
+    },
+    {
+      name: "Power of Two",
+      type: "power-of-two",
+      description: "65535 (16→8)",
+      iterations: 1000000,
+      inputDigits: [15, 15, 15, 15],
+      fromBase: 16,
+      toBase: 8
+    },
+    {
+      name: "Aligned Bases",
+      type: "aligned-bases",
+      description: "123 (4→16)",
+      iterations: 200000,
+      inputDigits: [3, 2, 1, 0],
+      fromBase: 4,
+      toBase: 16
+    },
+    {
+      name: "Large Number",
+      type: "large-number",
+      description: "10^100 (10→16)",
+      iterations: 10000,
+      inputDigits: Array(101).fill(0).map((_, i) => i === 0 ? 1 : 0),
+      fromBase: 10,
+      toBase: 16
+    },
+    {
+      name: "Binary to Hex",
+      type: "power-of-two",
+      description: "10101010 (2→16)",
+      iterations: 500000,
+      inputDigits: [0, 1, 0, 1, 0, 1, 0, 1],
+      fromBase: 2,
+      toBase: 16
+    },
+    {
+      name: "Hex to Decimal",
+      type: "general",
+      description: "FF2541 (16→10)",
+      iterations: 80000,
+      inputDigits: [1, 4, 5, 2, 5, 2, 15, 15],
+      fromBase: 16,
+      toBase: 10
+    },
+    {
+      name: "Base 32 to 64",
+      type: "power-of-two",
+      description: "AZBYCX (32→64)",
+      iterations: 300000,
+      inputDigits: [24, 2, 27, 1, 24, 2],
+      fromBase: 32,
+      toBase: 64
+    },
+    {
+      name: "Octal to Binary",
+      type: "power-of-two",
+      description: "755 (8→2)",
+      iterations: 400000,
+      inputDigits: [5, 5, 7],
+      fromBase: 8,
+      toBase: 2
+    }
+  ];
 
   constructor() {
     this.initializeEventListeners();
   }
 
   private initializeEventListeners() {
-    const runButton = document.getElementById('runBenchmark') as HTMLButtonElement;
-    const presetButtons = document.querySelectorAll('.preset-btn');
-
-    runButton.addEventListener('click', () => this.runBenchmark());
-
-    presetButtons.forEach(button => {
-      button.addEventListener('click', (e) => {
-        presetButtons.forEach(btn => btn.classList.remove('active'));
-        (e.target as HTMLElement).classList.add('active');
-        this.currentPreset = (e.target as HTMLElement).dataset.preset || 'custom';
-        this.loadPreset(this.currentPreset);
-      });
-    });
+    const runAllButton = document.getElementById('runAllBenchmarks') as HTMLButtonElement;
+    runAllButton.addEventListener('click', () => this.runAllBenchmarks());
   }
 
-  private loadPreset(preset: string) {
-    const iterations = document.getElementById('iterations') as HTMLInputElement;
-    const fromBase = document.getElementById('fromBase') as HTMLInputElement;
-    const toBase = document.getElementById('toBase') as HTMLInputElement;
-    const inputNumber = document.getElementById('inputNumber') as HTMLInputElement;
-
-    switch (preset) {
-      case 'small':
-        iterations.value = '100000';
-        fromBase.value = '10';
-        toBase.value = '16';
-        inputNumber.value = '12345';
-        break;
-      case 'power2':
-        iterations.value = '1000000';
-        fromBase.value = '16';
-        toBase.value = '8';
-        inputNumber.value = '65535'; // 0xFFFF in hex, which is 1111111111111111 in binary
-        break;
-      case 'aligned':
-        iterations.value = '200000';
-        fromBase.value = '4';
-        toBase.value = '16';
-        inputNumber.value = '123';
-        break;
-      case 'large':
-        iterations.value = '10000';
-        fromBase.value = '10';
-        toBase.value = '16';
-        inputNumber.value = '1' + '0'.repeat(100); // 10^100
-        break;
-    }
-  }
-
-  private async runBenchmark() {
+  private async runAllBenchmarks() {
     const loading = document.getElementById('loading');
-    const resultsSection = document.getElementById('resultsSection');
+    const resultsTable = document.getElementById('resultsTable');
     const error = document.getElementById('error');
-    const runButton = document.getElementById('runBenchmark') as HTMLButtonElement;
+    const runButton = document.getElementById('runAllBenchmarks') as HTMLButtonElement;
+    const loadingText = document.getElementById('loadingText');
 
     // Hide previous results and errors
-    if (loading) loading.style.display = 'block';
-    if (resultsSection) resultsSection.style.display = 'none';
-    if (error) error.style.display = 'none';
+    if (resultsTable) resultsTable.classList.add('hidden');
+    if (error) error.classList.add('hidden');
+    if (loading) loading.classList.remove('hidden');
     if (runButton) runButton.disabled = true;
 
     try {
-      // Get input values
-      const iterations = parseInt((document.getElementById('iterations') as HTMLInputElement).value);
-      const fromBase = parseInt((document.getElementById('fromBase') as HTMLInputElement).value);
-      const toBase = parseInt((document.getElementById('toBase') as HTMLInputElement).value);
-      const inputStr = (document.getElementById('inputNumber') as HTMLInputElement).value;
+      // Initialize WASM
+      await init();
 
-      // Convert string to digits
-      const inputDigits = this.stringToDigits(inputStr, fromBase);
+      const results: Array<TestCase & BenchmarkResult> = [];
 
-      // Determine test type
-      let testType = 'custom';
-      if (this.currentPreset !== 'custom') {
-        testType = this.currentPreset;
-      } else {
-        if (this.isPowerOfTwo(fromBase) && this.isPowerOfTwo(toBase)) {
-          testType = 'power-of-two';
-        } else if (inputDigits.length <= 5 && fromBase === 10) {
-          testType = 'small-number';
-        } else if (this.areAlignedBases(fromBase, toBase)) {
-          testType = 'aligned-bases';
-        } else {
-          testType = 'general-case';
+      // Run all benchmarks sequentially
+      for (let i = 0; i < this.benchmarkTests.length; i++) {
+        const testCase = this.benchmarkTests[i];
+
+        // Update loading text
+        if (loadingText) {
+          loadingText.textContent = `Running ${testCase.name}... (${i + 1}/${this.benchmarkTests.length})`;
         }
+
+        try {
+          const result = await run_quick_benchmark(
+            testCase.type,
+            testCase.iterations,
+            new Uint32Array(testCase.inputDigits),
+            testCase.fromBase,
+            testCase.toBase
+          );
+
+          results.push({
+            ...testCase,
+            ...result
+          });
+        } catch (err) {
+          console.error(`Error in ${testCase.name}:`, err);
+          results.push({
+            ...testCase,
+            baseline_time: 0,
+            optimized_time: 0,
+            speedup: 0,
+            baseline_result: [],
+            optimized_result: [],
+            is_correct: false
+          });
+        }
+
+        // Small delay for UI update
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Run benchmark
-      const result = await this.performBenchmark(testType, iterations, new Uint32Array(inputDigits), fromBase, toBase);
-
       // Display results
-      this.displayResults(result, testType);
-      this.updateChart(result);
+      this.displayResultsTable(results);
+      this.displaySummary(results);
 
     } catch (err) {
       console.error('Benchmark error:', err);
       if (error) {
         error.textContent = `Error: ${err}`;
-        error.style.display = 'block';
+        error.classList.remove('hidden');
       }
     } finally {
-      if (loading) loading.style.display = 'none';
+      if (loading) loading.classList.add('hidden');
       if (runButton) runButton.disabled = false;
     }
   }
 
-  private async performBenchmark(
-    testType: string,
-    iterations: number,
-    inputDigits: Uint32Array,
-    fromBase: number,
-    toBase: number
-  ): Promise<BenchmarkResult> {
-    // Warm up
-    await init();
+  private displayResultsTable(results: Array<TestCase & BenchmarkResult>) {
+    const tableBody = document.getElementById('tableBody');
+    const resultsTable = document.getElementById('resultsTable');
 
-    // Create and run benchmark
-    const result = await run_quick_benchmark(
-      testType,
-      iterations,
-      inputDigits,
-      fromBase,
-      toBase
-    );
+    if (!tableBody || !resultsTable) return;
 
-    return result as BenchmarkResult;
+    resultsTable.classList.remove('hidden');
+
+    tableBody.innerHTML = results.map(result => `
+      <tr>
+        <td class="test-name">${result.name}</td>
+        <td>
+          <span class="test-type type-${result.type}">${result.type}</span>
+        </td>
+        <td>${result.baseline_time.toFixed(2)}</td>
+        <td>${result.optimized_time.toFixed(2)}</td>
+        <td>
+          <span class="speedup-value ${result.speedup > 1 ? 'speedup-positive' : 'speedup-negative'}">
+            ${result.speedup.toFixed(2)}×
+          </span>
+        </td>
+        <td class="${result.is_correct ? 'status-correct' : 'status-incorrect'}">
+          ${result.is_correct ? '✓ Correct' : '✗ Incorrect'}
+        </td>
+      </tr>
+    `).join('');
   }
 
-  private stringToDigits(str: string, base: number): number[] {
-    const digits: number[] = [];
-    let num: bigint;
+  private displaySummary(results: Array<TestCase & BenchmarkResult>) {
+    const summaryStats = document.getElementById('summaryStats');
+    if (!summaryStats) return;
 
-    // Handle different number formats
-    if (str.startsWith('0x') || str.startsWith('0X')) {
-      // Hexadecimal
-      num = BigInt(str);
-    } else if (str.startsWith('0b') || str.startsWith('0B')) {
-      // Binary
-      num = BigInt(str);
-    } else if (str.startsWith('0o') || str.startsWith('0O')) {
-      // Octal
-      num = BigInt(str);
-    } else {
-      // Decimal
-      num = BigInt(str);
-    }
+    const avgSpeedup = results.reduce((sum, r) => sum + r.speedup, 0) / results.length;
+    const maxSpeedup = Math.max(...results.map(r => r.speedup));
+    const correctTests = results.filter(r => r.is_correct).length;
+    const totalBaselineTime = results.reduce((sum, r) => sum + r.baseline_time, 0);
+    const totalOptimizedTime = results.reduce((sum, r) => sum + r.optimized_time, 0);
 
-    if (num === 0n) {
-      return [0];
-    }
-
-    while (num > 0n) {
-      digits.push(Number(num % BigInt(base)));
-      num = num / BigInt(base);
-    }
-
-    return digits;
-  }
-
-  private isPowerOfTwo(n: number): boolean {
-    return n > 0 && (n & (n - 1)) === 0;
-  }
-
-  private areAlignedBases(base1: number, base2: number): boolean {
-    // Simple check for common aligned bases
-    const commonAlignments = [
-      [4, 16], [8, 64], [16, 256], [3, 27], [9, 81],
-      [16, 4], [64, 8], [256, 16], [27, 3], [81, 9]
-    ];
-
-    return commonAlignments.some(([a, b]) =>
-      (a === base1 && b === base2) || (a === base2 && b === base1)
-    );
-  }
-
-  private displayResults(result: BenchmarkResult, testType: string) {
-    const resultsSection = document.getElementById('resultsSection');
-    if (!resultsSection) return;
-
-    resultsSection.style.display = 'block';
-    resultsSection.classList.remove('hidden');
-
-    // Update result values with null checks
-    const baselineTimeEl = document.getElementById('baselineTime');
-    const optimizedTimeEl = document.getElementById('optimizedTime');
-    const testTypeEl = document.getElementById('testType');
-    const inputDigitsEl = document.getElementById('inputDigits');
-    const correctnessEl = document.getElementById('correctness');
-    const speedupEl = document.getElementById('speedup');
-
-    if (baselineTimeEl) baselineTimeEl.textContent = `${result.baseline_time.toFixed(2)} ms`;
-    if (optimizedTimeEl) optimizedTimeEl.textContent = `${result.optimized_time.toFixed(2)} ms`;
-    if (testTypeEl) testTypeEl.textContent = testType;
-    if (inputDigitsEl) inputDigitsEl.textContent = result.baseline_result.length + ' digits';
-
-    if (correctnessEl) {
-      correctnessEl.textContent = result.is_correct ? '✓ Correct' : '✗ Incorrect';
-      correctnessEl.style.color = result.is_correct ? '#16a34a' : '#dc2626';
-    }
-
-    if (speedupEl) {
-      speedupEl.textContent = `${result.speedup.toFixed(2)}× speedup`;
-      speedupEl.className = `speedup ${result.speedup > 1 ? 'positive' : 'negative'}`;
-    }
-  }
-
-  private updateChart(result: BenchmarkResult) {
-    // Find the chart container safely
-    const chartContainer = document.getElementById('chartContainer');
-    if (!chartContainer) {
-      // Create chart container if it doesn't exist
-      const resultsSection = document.getElementById('resultsSection');
-      if (!resultsSection) return;
-
-      const newChartContainer = document.createElement('div');
-      newChartContainer.id = 'chartContainer';
-      newChartContainer.className = 'chart-container';
-      newChartContainer.style.display = 'block';
-      resultsSection.appendChild(newChartContainer);
-    }
-
-    // Get or create the chart container
-    const container = document.getElementById('chartContainer')!;
-    container.style.display = 'block';
-
-    // Simple bar chart using CSS with modern design
-    const baselineHeight = (result.baseline_time / Math.max(result.baseline_time, result.optimized_time)) * 250;
-    const optimizedHeight = (result.optimized_time / Math.max(result.baseline_time, result.optimized_time)) * 250;
-
-    container.innerHTML = `
-      <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 300px; padding: 20px;">
-        <div style="text-align: center;">
-          <div style="background: linear-gradient(135deg, #667eea, #5a67d8); width: 120px; height: ${baselineHeight}px; margin-bottom: 12px; border-radius: 8px 8px 0 0; transition: height 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);"></div>
-          <div style="font-weight: 600; color: #333; font-size: 16px; margin-bottom: 4px;">Baseline</div>
-          <div style="font-weight: bold; color: #667eea; font-size: 18px;">${result.baseline_time.toFixed(2)} ms</div>
-        </div>
-        <div style="text-align: center;">
-          <div style="background: linear-gradient(135deg, #10b981, #059669); width: 120px; height: ${optimizedHeight}px; margin-bottom: 12px; border-radius: 8px 8px 0 0; transition: height 0.3s ease; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);"></div>
-          <div style="font-weight: 600; color: #333; font-size: 16px; margin-bottom: 4px;">Optimized</div>
-          <div style="font-weight: bold; color: #10b981; font-size: 18px;">${result.optimized_time.toFixed(2)} ms</div>
-        </div>
+    summaryStats.innerHTML = `
+      <div class="summary-card">
+        <div class="summary-value">${avgSpeedup.toFixed(2)}×</div>
+        <div class="summary-label">Avg Speedup</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value">${maxSpeedup.toFixed(2)}×</div>
+        <div class="summary-label">Best Speedup</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value">${correctTests}/${results.length}</div>
+        <div class="summary-label">Tests Passed</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value">${((totalOptimizedTime / totalBaselineTime) * 100).toFixed(1)}%</div>
+        <div class="summary-label">Time Saved</div>
       </div>
     `;
   }
