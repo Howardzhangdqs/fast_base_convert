@@ -209,28 +209,39 @@ class BenchmarkApp {
   }
 
   private updateChart(result: BenchmarkResult) {
-    const chartCard = document.getElementById('chartCard')!;
-    chartCard.style.display = 'block';
-
     // Find the chart container safely
     const chartContainer = document.getElementById('chartContainer');
-    if (!chartContainer) return;
+    if (!chartContainer) {
+      // Create chart container if it doesn't exist
+      const resultsSection = document.getElementById('resultsSection');
+      if (!resultsSection) return;
 
-    // Simple bar chart using CSS
+      const newChartContainer = document.createElement('div');
+      newChartContainer.id = 'chartContainer';
+      newChartContainer.className = 'chart-container';
+      newChartContainer.style.display = 'block';
+      resultsSection.appendChild(newChartContainer);
+    }
+
+    // Get or create the chart container
+    const container = document.getElementById('chartContainer')!;
+    container.style.display = 'block';
+
+    // Simple bar chart using CSS with modern design
     const baselineHeight = (result.baseline_time / Math.max(result.baseline_time, result.optimized_time)) * 250;
     const optimizedHeight = (result.optimized_time / Math.max(result.baseline_time, result.optimized_time)) * 250;
 
-    chartContainer.innerHTML = `
+    container.innerHTML = `
       <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 300px; padding: 20px;">
         <div style="text-align: center;">
-          <div style="background: #667eea; width: 100px; height: ${baselineHeight}px; margin-bottom: 10px; border-radius: 4px 4px 0 0; transition: height 0.3s ease;"></div>
-          <div style="font-weight: 600; color: #333;">Baseline</div>
-          <div style="font-weight: bold; color: #667eea;">${result.baseline_time.toFixed(2)} ms</div>
+          <div style="background: linear-gradient(135deg, #667eea, #5a67d8); width: 120px; height: ${baselineHeight}px; margin-bottom: 12px; border-radius: 8px 8px 0 0; transition: height 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);"></div>
+          <div style="font-weight: 600; color: #333; font-size: 16px; margin-bottom: 4px;">Baseline</div>
+          <div style="font-weight: bold; color: #667eea; font-size: 18px;">${result.baseline_time.toFixed(2)} ms</div>
         </div>
         <div style="text-align: center;">
-          <div style="background: #4caf50; width: 100px; height: ${optimizedHeight}px; margin-bottom: 10px; border-radius: 4px 4px 0 0; transition: height 0.3s ease;"></div>
-          <div style="font-weight: 600; color: #333;">Optimized</div>
-          <div style="font-weight: bold; color: #4caf50;">${result.optimized_time.toFixed(2)} ms</div>
+          <div style="background: linear-gradient(135deg, #10b981, #059669); width: 120px; height: ${optimizedHeight}px; margin-bottom: 12px; border-radius: 8px 8px 0 0; transition: height 0.3s ease; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);"></div>
+          <div style="font-weight: 600; color: #333; font-size: 16px; margin-bottom: 4px;">Optimized</div>
+          <div style="font-weight: bold; color: #10b981; font-size: 18px;">${result.optimized_time.toFixed(2)} ms</div>
         </div>
       </div>
     `;
