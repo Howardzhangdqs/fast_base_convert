@@ -20,6 +20,8 @@ interface TestCase {
 }
 
 class BenchmarkApp {
+  private wasmInitialized: boolean = false;
+
   private benchmarkTests: TestCase[] = [
     {
       name: "Small Number",
@@ -100,8 +102,76 @@ class BenchmarkApp {
   }
 
   private initializeEventListeners() {
+    // Tab navigation
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        const targetTab = (e.target as HTMLElement).getAttribute('data-tab') || 'benchmarks';
+        this.switchTab(targetTab);
+      });
+    });
+
+    // Benchmark tab
     const runAllButton = document.getElementById('runAllBenchmarks') as HTMLButtonElement;
-    runAllButton.addEventListener('click', () => this.runAllBenchmarks());
+    if (runAllButton) {
+      runAllButton.addEventListener('click', () => this.runAllBenchmarks());
+    }
+
+    // Converter tab
+    const convertBtn = document.getElementById('convertBtn') as HTMLButtonElement;
+    const clearBtn = document.getElementById('clearBtn') as HTMLButtonElement;
+    const inputNumber = document.getElementById('inputNumber') as HTMLInputElement;
+    const inputBase = document.getElementById('inputBase') as HTMLInputElement;
+    const outputBase = document.getElementById('outputBase') as HTMLInputElement;
+
+    if (convertBtn) convertBtn.addEventListener('click', () => this.performConversion());
+    if (clearBtn) clearBtn.addEventListener('click', () => this.clearConversion());
+    if (inputNumber) inputNumber.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.performConversion();
+    });
+    if (inputBase) inputBase.addEventListener('change', () => this.performConversion());
+    if (outputBase) outputBase.addEventListener('change', () => this.performConversion());
+
+    // Quick preset buttons
+    const presetButtons = document.querySelectorAll('.preset-quick-btn');
+    presetButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        const from = (e.target as HTMLElement).getAttribute('data-from') || '10';
+        const to = (e.target as HTMLElement).getAttribute('data-to') || '16';
+        const value = (e.target as HTMLElement).getAttribute('data-value') || '';
+        this.applyPreset(from, to, value);
+      });
+    });
+  }
+
+  private switchTab(tabName: string) {
+    // Update tab buttons
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabName) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    // Update tab content
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => {
+      const contentId = content.id;
+      if (contentId === `${tabName}-tab`) {
+        content.classList.remove('hidden');
+      } else {
+        content.classList.add('hidden');
+      }
+    });
+  }
+
+  private async ensureWasmInitialized() {
+    if (!this.wasmInitialized) {
+      await init();
+      this.wasmInitialized = true;
+    }
   }
 
   private async runAllBenchmarks() {
@@ -119,7 +189,7 @@ class BenchmarkApp {
 
     try {
       // Initialize WASM
-      await init();
+      await this.ensureWasmInitialized();
 
       const results: Array<TestCase & BenchmarkResult> = [];
 
@@ -234,6 +304,204 @@ class BenchmarkApp {
         <div class="summary-label">Time Saved</div>
       </div>
     `;
+  }
+
+  private async performConversion() {
+    const inputNumber = document.getElementById('inputNumber') as HTMLInputElement;
+    const inputBase = document.getElementById('inputBase') as HTMLInputElement;
+    const outputBase = document.getElementById('outputBase') as HTMLInputElement;
+    const resultDisplay = document.getElementById('conversionResult');
+    const error = document.getElementById('converterError');
+    const algorithmInfo = document.getElementById('algorithmInfo');
+    const strategyType = document.getElementById('strategyType');
+    const conversionTime = document.getElementById('conversionTime');
+    const digitsProcessed = document.getElementById('digitsProcessed');
+
+    if (!inputNumber || !inputBase || !outputBase || !resultDisplay) return;
+
+    const inputValue = inputNumber.value.trim();
+    const fromBase = parseInt(inputBase.value);
+    const toBase = parseInt(outputBase.value);
+
+    // Clear previous errors
+    if (error) error.classList.add('hidden');
+
+    // Validation
+    if (!inputValue) {
+      resultDisplay.textContent = '-';
+      if (algorithmInfo) algorithmInfo.classList.add('hidden');
+      return;
+    }
+
+    if (fromBase < 2 || fromBase > 65536 || toBase < 2 || toBase > 65536) {
+      this.showConverterError('Base must be between 2 and 65536');
+      return;
+    }
+
+    try {
+      await this.ensureWasmInitialized();
+
+      const startTime = performance.now();
+
+      // Parse input to digits
+      const inputDigits = this.stringToDigits(inputValue, fromBase);
+
+      // Perform conversion
+      const result = this.performBaseConversion(inputDigits, fromBase, toBase);
+      const endTime = performance.now();
+
+      // Format result
+      const resultString = this.digitsToString(result);
+      resultDisplay.textContent = resultString;
+
+      // Show algorithm info
+      if (algorithmInfo && strategyType && conversionTime && digitsProcessed) {
+        algorithmInfo.classList.remove('hidden');
+
+        // Determine strategy
+        let strategy = 'General Division';
+        if (this.isPowerOfTwo(fromBase) && this.isPowerOfTwo(toBase)) {
+          strategy = 'Bit Operations';
+        } else if (inputDigits.length <= 5 && fromBase === 10) {
+          strategy = 'u128 Fast Path';
+        } else if (this.areAlignedBases(fromBase, toBase)) {
+          strategy = 'Aligned Bases';
+        }
+
+        strategyType.textContent = strategy;
+        conversionTime.textContent = `${(endTime - startTime).toFixed(3)} ms`;
+        digitsProcessed.textContent = inputDigits.length.toString();
+      }
+
+    } catch (err) {
+      this.showConverterError(`Conversion error: ${err}`);
+      resultDisplay.textContent = 'Error';
+    }
+  }
+
+  private clearConversion() {
+    const inputNumber = document.getElementById('inputNumber') as HTMLInputElement;
+    const resultDisplay = document.getElementById('conversionResult');
+    const error = document.getElementById('converterError');
+    const algorithmInfo = document.getElementById('algorithmInfo');
+
+    if (inputNumber) inputNumber.value = '';
+    if (resultDisplay) resultDisplay.textContent = '-';
+    if (error) error.classList.add('hidden');
+    if (algorithmInfo) algorithmInfo.classList.add('hidden');
+  }
+
+  private applyPreset(fromBase: string, toBase: string, value: string) {
+    const inputNumber = document.getElementById('inputNumber') as HTMLInputElement;
+    const inputBase = document.getElementById('inputBase') as HTMLInputElement;
+    const outputBase = document.getElementById('outputBase') as HTMLInputElement;
+
+    if (inputNumber) inputNumber.value = value;
+    if (inputBase) inputBase.value = fromBase;
+    if (outputBase) outputBase.value = toBase;
+
+    // Auto convert
+    this.performConversion();
+  }
+
+  private showConverterError(message: string) {
+    const error = document.getElementById('converterError');
+    if (error) {
+      error.textContent = message;
+      error.classList.remove('hidden');
+    }
+  }
+
+  private stringToDigits(str: string, base: number): number[] {
+    const digits: number[] = [];
+    let num: bigint;
+
+    // Handle different number formats
+    if (str.startsWith('0x') || str.startsWith('0X')) {
+      // Hexadecimal
+      num = BigInt(str);
+    } else if (str.startsWith('0b') || str.startsWith('0B')) {
+      // Binary
+      num = BigInt(str);
+    } else if (str.startsWith('0o') || str.startsWith('0O')) {
+      // Octal
+      num = BigInt(str);
+    } else {
+      // Decimal
+      num = BigInt(str);
+    }
+
+    if (num === 0n) {
+      return [0];
+    }
+
+    while (num > 0n) {
+      digits.push(Number(num % BigInt(base)));
+      num = num / BigInt(base);
+    }
+
+    return digits;
+  }
+
+  private performBaseConversion(digits: number[], fromBase: number, toBase: number): Uint32Array {
+    if (fromBase === toBase) {
+      return new Uint32Array(digits);
+    }
+
+    // Convert digits to bigint value
+    let value = 0n;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      value = value * BigInt(fromBase) + BigInt(digits[i]);
+    }
+
+    // Convert bigint to target base digits
+    if (value === 0n) {
+      return new Uint32Array([0]);
+    }
+
+    const result: number[] = [];
+    while (value > 0n) {
+      result.push(Number(value % BigInt(toBase)));
+      value = value / BigInt(toBase);
+    }
+
+    return new Uint32Array(result);
+  }
+
+  private digitsToString(digits: Uint32Array): string {
+    if (digits.length === 0) return '0';
+    if (digits.length === 1 && digits[0] === 0) return '0';
+
+    const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = '';
+
+    for (let i = digits.length - 1; i >= 0; i--) {
+      const digit = digits[i];
+      if (digit < 10) {
+        result += digit.toString();
+      } else if (digit < 36) {
+        result += chars[digit];
+      } else {
+        result += `[${digit}]`;
+      }
+    }
+
+    return result;
+  }
+
+  private isPowerOfTwo(n: number): boolean {
+    return n > 0 && (n & (n - 1)) === 0;
+  }
+
+  private areAlignedBases(base1: number, base2: number): boolean {
+    const commonAlignments = [
+      [4, 16], [8, 64], [16, 256], [3, 27], [9, 81],
+      [16, 4], [64, 8], [256, 16], [27, 3], [81, 9]
+    ];
+
+    return commonAlignments.some(([a, b]) =>
+      (a === base1 && b === base2) || (a === base2 && b === base1)
+    );
   }
 }
 
