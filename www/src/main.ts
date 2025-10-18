@@ -68,15 +68,15 @@ class BenchmarkApp {
 
   private async runBenchmark() {
     const loading = document.getElementById('loading');
-    const results = document.getElementById('results');
+    const resultsSection = document.getElementById('resultsSection');
     const error = document.getElementById('error');
     const runButton = document.getElementById('runBenchmark') as HTMLButtonElement;
 
     // Hide previous results and errors
-    loading!.style.display = 'block';
-    results!.style.display = 'none';
-    error!.style.display = 'none';
-    runButton.disabled = true;
+    if (loading) loading.style.display = 'block';
+    if (resultsSection) resultsSection.style.display = 'none';
+    if (error) error.style.display = 'none';
+    if (runButton) runButton.disabled = true;
 
     try {
       // Get input values
@@ -113,11 +113,13 @@ class BenchmarkApp {
 
     } catch (err) {
       console.error('Benchmark error:', err);
-      error!.textContent = `Error: ${err}`;
-      error!.style.display = 'block';
+      if (error) {
+        error.textContent = `Error: ${err}`;
+        error.style.display = 'block';
+      }
     } finally {
-      loading!.style.display = 'none';
-      runButton.disabled = false;
+      if (loading) loading.style.display = 'none';
+      if (runButton) runButton.disabled = false;
     }
   }
 
@@ -191,21 +193,34 @@ class BenchmarkApp {
   }
 
   private displayResults(result: BenchmarkResult, testType: string) {
-    const results = document.getElementById('results')!;
-    results.style.display = 'grid';
+    const resultsSection = document.getElementById('resultsSection');
+    if (!resultsSection) return;
 
-    document.getElementById('baselineTime')!.textContent = `${result.baseline_time.toFixed(2)} ms`;
-    document.getElementById('optimizedTime')!.textContent = `${result.optimized_time.toFixed(2)} ms`;
-    document.getElementById('testType')!.textContent = testType;
-    document.getElementById('inputDigits')!.textContent = result.baseline_result.length + ' digits';
+    resultsSection.style.display = 'block';
+    resultsSection.classList.remove('hidden');
 
-    const correctnessEl = document.getElementById('correctness')!;
-    correctnessEl.textContent = result.is_correct ? '✓ Correct' : '✗ Incorrect';
-    correctnessEl.style.color = result.is_correct ? '#4caf50' : '#f44336';
+    // Update result values with null checks
+    const baselineTimeEl = document.getElementById('baselineTime');
+    const optimizedTimeEl = document.getElementById('optimizedTime');
+    const testTypeEl = document.getElementById('testType');
+    const inputDigitsEl = document.getElementById('inputDigits');
+    const correctnessEl = document.getElementById('correctness');
+    const speedupEl = document.getElementById('speedup');
 
-    const speedupEl = document.getElementById('speedup')!;
-    speedupEl.textContent = `${result.speedup.toFixed(2)}× speedup`;
-    speedupEl.className = `speedup ${result.speedup > 1 ? 'positive' : 'negative'}`;
+    if (baselineTimeEl) baselineTimeEl.textContent = `${result.baseline_time.toFixed(2)} ms`;
+    if (optimizedTimeEl) optimizedTimeEl.textContent = `${result.optimized_time.toFixed(2)} ms`;
+    if (testTypeEl) testTypeEl.textContent = testType;
+    if (inputDigitsEl) inputDigitsEl.textContent = result.baseline_result.length + ' digits';
+
+    if (correctnessEl) {
+      correctnessEl.textContent = result.is_correct ? '✓ Correct' : '✗ Incorrect';
+      correctnessEl.style.color = result.is_correct ? '#16a34a' : '#dc2626';
+    }
+
+    if (speedupEl) {
+      speedupEl.textContent = `${result.speedup.toFixed(2)}× speedup`;
+      speedupEl.className = `speedup ${result.speedup > 1 ? 'positive' : 'negative'}`;
+    }
   }
 
   private updateChart(result: BenchmarkResult) {
