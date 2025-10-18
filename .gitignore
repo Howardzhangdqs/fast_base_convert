@@ -6,3 +6,5 @@ Cargo.lock
 dist
 
 www/dist
+
+www/node_modules

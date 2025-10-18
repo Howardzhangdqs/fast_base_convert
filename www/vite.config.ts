@@ -15,5 +15,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['fast_base_convert']
-  }
+  },
+  base: './'
 })
