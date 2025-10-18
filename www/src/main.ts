@@ -99,6 +99,11 @@ class BenchmarkApp {
 
   constructor() {
     this.initializeEventListeners();
+    // Initialize base hints
+    setTimeout(() => {
+      this.updateBaseHint('fromBase');
+      this.updateBaseHint('toBase');
+    }, 100);
   }
 
   private initializeEventListeners() {
@@ -132,8 +137,18 @@ class BenchmarkApp {
         if (e.key === 'Enter') this.performConversion();
       });
     }
-    if (inputBase) inputBase.addEventListener('input', () => this.performConversion());
-    if (outputBase) outputBase.addEventListener('input', () => this.performConversion());
+    if (inputBase) {
+      inputBase.addEventListener('input', () => {
+        this.updateBaseHint('fromBase');
+        this.performConversion();
+      });
+    }
+    if (outputBase) {
+      outputBase.addEventListener('input', () => {
+        this.updateBaseHint('toBase');
+        this.performConversion();
+      });
+    }
 
     // Quick preset buttons
     const presetButtons = document.querySelectorAll('.preset-quick-btn');
@@ -425,6 +440,70 @@ class BenchmarkApp {
       error.textContent = message;
       error.classList.remove('hidden');
     }
+  }
+
+  private updateBaseHint(baseType: 'fromBase' | 'toBase') {
+    const input = document.getElementById(baseType) as HTMLInputElement;
+    const hint = document.getElementById(baseType === 'fromBase' ? 'fromBaseHint' : 'toBaseHint');
+
+    if (!input || !hint) return;
+
+    const base = parseInt(input.value) || 10;
+    let hintText = '';
+
+    if (base <= 10) {
+      hintText = `Base ${base}: Use digits 0-${base - 1}`;
+    } else if (base <= 36) {
+      const maxDigit = this.getDigitRepresentation(base - 1);
+      const examples = this.getBaseExamples(base, 'lower');
+      hintText = `Base ${base}: Use 0-9, A-${maxDigit.toUpperCase()} ${examples}`;
+    } else if (base <= 62) {
+      const maxDigit = this.getDigitRepresentation(base - 1);
+      const examples = this.getBaseExamples(base, 'mixed');
+      hintText = `Base ${base}: Use 0-9, a-z, A-Z (35=${maxDigit}) ${examples}`;
+    } else {
+      const examples = this.getBaseExamples(base, 'mixed');
+      hintText = `Base ${base}: Use digits [0-${base-1}] ${examples}`;
+    }
+
+    hint.textContent = hintText;
+  }
+
+  private getDigitRepresentation(value: number): string {
+    if (value < 10) return value.toString();
+    if (value < 36) return String.fromCharCode(65 + value - 10); // A-Z
+    return String.fromCharCode(97 + value - 36); // a-z
+  }
+
+  private getBaseExamples(base: number, _caseType: 'lower' | 'upper' | 'mixed'): string {
+    const examples = [];
+
+    // Common examples for different bases
+    switch (base) {
+      case 16:
+        examples.push('(e.g., FF, 1A2B)');
+        break;
+      case 32:
+        examples.push('(e.g., 1V, Z0)');
+        break;
+      case 36:
+        examples.push('(e.g., Z, 1K2)');
+        break;
+      case 62:
+        examples.push('(e.g., z, 1a, A0)');
+        break;
+      default:
+        if (base <= 36) {
+          const maxVal = Math.min(base - 1, 35);
+          const digit1 = this.getDigitRepresentation(10);
+          const digit2 = this.getDigitRepresentation(maxVal);
+          examples.push(`(e.g., ${digit1}${digit2})`);
+        } else {
+          examples.push('(e.g., [10][35])');
+        }
+    }
+
+    return examples.join(' ');
   }
 
   private stringToDigits(str: string, base: number): number[] {
