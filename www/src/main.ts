@@ -139,22 +139,30 @@ class BenchmarkApp {
     }
     if (inputBase) {
       inputBase.addEventListener('input', () => {
-        this.updateBaseHint('fromBase');
-        this.performConversion();
+        if (this.isConverterTabActive()) {
+          this.updateBaseHint('fromBase');
+          this.performConversion();
+        }
       });
       inputBase.addEventListener('change', () => {
-        this.updateBaseHint('fromBase');
-        this.performConversion();
+        if (this.isConverterTabActive()) {
+          this.updateBaseHint('fromBase');
+          this.performConversion();
+        }
       });
     }
     if (outputBase) {
       outputBase.addEventListener('input', () => {
-        this.updateBaseHint('toBase');
-        this.performConversion();
+        if (this.isConverterTabActive()) {
+          this.updateBaseHint('toBase');
+          this.performConversion();
+        }
       });
       outputBase.addEventListener('change', () => {
-        this.updateBaseHint('toBase');
-        this.performConversion();
+        if (this.isConverterTabActive()) {
+          this.updateBaseHint('toBase');
+          this.performConversion();
+        }
       });
     }
 
@@ -191,6 +199,19 @@ class BenchmarkApp {
         content.classList.add('hidden');
       }
     });
+
+    // Update base hints when switching to converter tab
+    if (tabName === 'converter') {
+      setTimeout(() => {
+        this.updateBaseHint('fromBase');
+        this.updateBaseHint('toBase');
+      }, 50);
+    }
+  }
+
+  private isConverterTabActive(): boolean {
+    const converterTab = document.getElementById('converter-tab');
+    return !!(converterTab && !converterTab.classList.contains('hidden'));
   }
 
   private async ensureWasmInitialized() {
@@ -459,7 +480,7 @@ class BenchmarkApp {
     const hint = document.getElementById(baseType === 'fromBase' ? 'fromBaseHint' : 'toBaseHint');
 
     if (!input || !hint) {
-      console.log(`Missing elements for ${baseType}`);
+      // Elements might not exist if not on converter tab
       return;
     }
 
@@ -482,7 +503,6 @@ class BenchmarkApp {
     }
 
     hint.textContent = hintText;
-    console.log(`Updated ${baseType} hint for base ${base}: ${hintText}`);
   }
 
   private getDigitRepresentation(value: number): string {
