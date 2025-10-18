@@ -431,19 +431,23 @@ class BenchmarkApp {
     const digits: number[] = [];
     let num: bigint;
 
-    // Handle different number formats
-    if (str.startsWith('0x') || str.startsWith('0X')) {
-      // Hexadecimal
-      num = BigInt(str);
-    } else if (str.startsWith('0b') || str.startsWith('0B')) {
-      // Binary
-      num = BigInt(str);
-    } else if (str.startsWith('0o') || str.startsWith('0O')) {
-      // Octal
-      num = BigInt(str);
-    } else {
-      // Decimal
-      num = BigInt(str);
+    try {
+      // Handle different number formats
+      if (str.startsWith('0x') || str.startsWith('0X')) {
+        // Hexadecimal
+        num = BigInt(str);
+      } else if (str.startsWith('0b') || str.startsWith('0B')) {
+        // Binary
+        num = BigInt(str);
+      } else if (str.startsWith('0o') || str.startsWith('0O')) {
+        // Octal
+        num = BigInt(str);
+      } else {
+        // Convert based on the specified base
+        num = this.parseNumberInBase(str, base);
+      }
+    } catch (err) {
+      throw new Error(`Invalid number "${str}" for base ${base}`);
     }
 
     if (num === 0n) {
@@ -456,6 +460,24 @@ class BenchmarkApp {
     }
 
     return digits;
+  }
+
+  private parseNumberInBase(str: string, base: number): bigint {
+    const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = 0n;
+
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i].toLowerCase();
+      const value = chars.indexOf(char);
+
+      if (value === -1 || value >= base) {
+        throw new Error(`Invalid digit "${char}" for base ${base}`);
+      }
+
+      result = result * BigInt(base) + BigInt(value);
+    }
+
+    return result;
   }
 
   private performBaseConversion(digits: number[], fromBase: number, toBase: number): Uint32Array {
