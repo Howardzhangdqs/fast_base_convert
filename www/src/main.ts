@@ -126,11 +126,14 @@ class BenchmarkApp {
 
     if (convertBtn) convertBtn.addEventListener('click', () => this.performConversion());
     if (clearBtn) clearBtn.addEventListener('click', () => this.clearConversion());
-    if (inputNumber) inputNumber.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.performConversion();
-    });
-    if (inputBase) inputBase.addEventListener('change', () => this.performConversion());
-    if (outputBase) outputBase.addEventListener('change', () => this.performConversion());
+    if (inputNumber) {
+      inputNumber.addEventListener('input', () => this.performConversion());
+      inputNumber.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') this.performConversion();
+      });
+    }
+    if (inputBase) inputBase.addEventListener('input', () => this.performConversion());
+    if (outputBase) outputBase.addEventListener('input', () => this.performConversion());
 
     // Quick preset buttons
     const presetButtons = document.querySelectorAll('.preset-quick-btn');
@@ -311,6 +314,7 @@ class BenchmarkApp {
     const inputBase = document.getElementById('inputBase') as HTMLInputElement;
     const outputBase = document.getElementById('outputBase') as HTMLInputElement;
     const resultDisplay = document.getElementById('conversionResult');
+    const conversionTimeDisplay = document.getElementById('conversionTimeDisplay');
     const error = document.getElementById('converterError');
     const algorithmInfo = document.getElementById('algorithmInfo');
     const strategyType = document.getElementById('strategyType');
@@ -329,6 +333,7 @@ class BenchmarkApp {
     // Validation
     if (!inputValue) {
       resultDisplay.textContent = '-';
+      if (conversionTimeDisplay) conversionTimeDisplay.textContent = '-';
       if (algorithmInfo) algorithmInfo.classList.add('hidden');
       return;
     }
@@ -354,6 +359,13 @@ class BenchmarkApp {
       const resultString = this.digitsToString(result);
       resultDisplay.textContent = resultString;
 
+      // Show conversion time
+      if (conversionTimeDisplay) {
+        const timeElapsed = (endTime - startTime).toFixed(3);
+        conversionTimeDisplay.textContent = `⏱️ ${timeElapsed} ms`;
+        conversionTimeDisplay.style.color = timeElapsed === '0.000' ? '#9ca3af' : '#4f46e5';
+      }
+
       // Show algorithm info
       if (algorithmInfo && strategyType && conversionTime && digitsProcessed) {
         algorithmInfo.classList.remove('hidden');
@@ -376,17 +388,20 @@ class BenchmarkApp {
     } catch (err) {
       this.showConverterError(`Conversion error: ${err}`);
       resultDisplay.textContent = 'Error';
+      if (conversionTimeDisplay) conversionTimeDisplay.textContent = '-';
     }
   }
 
   private clearConversion() {
     const inputNumber = document.getElementById('inputNumber') as HTMLInputElement;
     const resultDisplay = document.getElementById('conversionResult');
+    const conversionTimeDisplay = document.getElementById('conversionTimeDisplay');
     const error = document.getElementById('converterError');
     const algorithmInfo = document.getElementById('algorithmInfo');
 
     if (inputNumber) inputNumber.value = '';
     if (resultDisplay) resultDisplay.textContent = '-';
+    if (conversionTimeDisplay) conversionTimeDisplay.textContent = '-';
     if (error) error.classList.add('hidden');
     if (algorithmInfo) algorithmInfo.classList.add('hidden');
   }
