@@ -761,6 +761,19 @@
       .preset-quick-btn {
         padding: 14px 20px;
       }
+
+      .input-help {
+        padding: 10px;
+      }
+
+      .input-help h4 {
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+
+      .input-help ul {
+        font-size: 12px;
+      }
     }
   </style>
 </head>
@@ -834,6 +847,16 @@
           <h2 class="section-title">Base Converter</h2>
           <p style="margin-bottom: 20px; color: #666;">Convert numbers between different bases using optimized algorithms.</p>
 
+          <div class="input-help" style="background: #f0f9ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+            <h4 style="margin-bottom: 8px; font-size: 14px; color: #1e40af;">📝 How to enter numbers:</h4>
+            <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #374151; line-height: 1.5;">
+              <li><strong>Bases 2-10:</strong> Use digits 0-9 (e.g., <code>1010</code> for binary)</li>
+              <li><strong>Bases 11-36:</strong> Use 0-9, A-Z (e.g., <code>FF</code> for hex, <code>Z</code> for base-36)</li>
+              <li><strong>Bases 37-62:</strong> Use 0-9, a-z, A-Z (e.g., <code>aZ</code> for mixed case)</li>
+              <li><strong>With prefixes:</strong> <code>xFF</code>, <code>0b1010</code>, <code>0o777</code> for hex/binary/octal</li>
+            </ul>
+          </div>
+
           <div class="converter-controls">
             <!-- Input Section -->
             <div class="input-section">
@@ -841,7 +864,10 @@
               <div class="controls-grid">
                 <div class="control">
                   <label for="inputNumber">Number</label>
-                  <input type="text" id="inputNumber" placeholder="Enter number (e.g., 12345, 0xFF, 0b1010)" style="width: 100%;">
+                  <input type="text" id="inputNumber" placeholder="e.g., 12345, FF, 1010, Z" style="width: 100%;">
+                  <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+                    Base 11+: Use A-Z (10=A, 11=B, 35=Z) • Base 37+: Use a-z, A-Z
+                  </div>
                 </div>
                 <div class="control">
                   <label for="inputBase">From Base</label>
@@ -884,10 +910,10 @@
               <button class="preset-quick-btn" data-from="16" data-to="10" data-value="FF">Hex → Decimal</button>
               <button class="preset-quick-btn" data-from="10" data-to="2" data-value="42">Decimal → Binary</button>
               <button class="preset-quick-btn" data-from="2" data-to="10" data-value="101010">Binary → Decimal</button>
-              <button class="preset-quick-btn" data-from="10" data-to="8" data-value="64">Decimal → Octal</button>
-              <button class="preset-quick-btn" data-from="8" data-to="10" data-value="100">Octal → Decimal</button>
-              <button class="preset-quick-btn" data-from="16" data-to="2" data-value="A1F">Hex → Binary</button>
-              <button class="preset-quick-btn" data-from="2" data-to="16" data-value="101000011111">Binary → Hex</button>
+              <button class="preset-quick-btn" data-from="10" data-to="36" data-value="12345">Decimal → Base36</button>
+              <button class="preset-quick-btn" data-from="36" data-to="10" data-value="9IX">Base36 → Decimal</button>
+              <button class="preset-quick-btn" data-from="10" data-to="62" data-value="1000">Decimal → Base62</button>
+              <button class="preset-quick-btn" data-from="62" data-to="10" data-value="g8">Base62 → Decimal</button>
             </div>
           </div>
 
