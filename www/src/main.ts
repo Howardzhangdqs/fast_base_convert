@@ -142,9 +142,17 @@ class BenchmarkApp {
         this.updateBaseHint('fromBase');
         this.performConversion();
       });
+      inputBase.addEventListener('change', () => {
+        this.updateBaseHint('fromBase');
+        this.performConversion();
+      });
     }
     if (outputBase) {
       outputBase.addEventListener('input', () => {
+        this.updateBaseHint('toBase');
+        this.performConversion();
+      });
+      outputBase.addEventListener('change', () => {
         this.updateBaseHint('toBase');
         this.performConversion();
       });
@@ -430,6 +438,10 @@ class BenchmarkApp {
     if (inputBase) inputBase.value = fromBase;
     if (outputBase) outputBase.value = toBase;
 
+    // Update base hints
+    this.updateBaseHint('fromBase');
+    this.updateBaseHint('toBase');
+
     // Auto convert
     this.performConversion();
   }
@@ -446,7 +458,10 @@ class BenchmarkApp {
     const input = document.getElementById(baseType) as HTMLInputElement;
     const hint = document.getElementById(baseType === 'fromBase' ? 'fromBaseHint' : 'toBaseHint');
 
-    if (!input || !hint) return;
+    if (!input || !hint) {
+      console.log(`Missing elements for ${baseType}`);
+      return;
+    }
 
     const base = parseInt(input.value) || 10;
     let hintText = '';
@@ -467,6 +482,7 @@ class BenchmarkApp {
     }
 
     hint.textContent = hintText;
+    console.log(`Updated ${baseType} hint for base ${base}: ${hintText}`);
   }
 
   private getDigitRepresentation(value: number): string {
