@@ -27,7 +27,7 @@ class BenchmarkApp {
       name: "Small Number",
       type: "small-number",
       description: "12345 (10→16)",
-      iterations: 100000,
+      iterations: 9000000,  // 约 900万次
       inputDigits: [5, 4, 3, 2, 1],
       fromBase: 10,
       toBase: 16
@@ -36,7 +36,7 @@ class BenchmarkApp {
       name: "Power of Two",
       type: "power-of-two",
       description: "65535 (16→8)",
-      iterations: 1000000,
+      iterations: 6000000,  // 约 600万次
       inputDigits: [15, 15, 15, 15],
       fromBase: 16,
       toBase: 8
@@ -45,7 +45,7 @@ class BenchmarkApp {
       name: "Aligned Bases",
       type: "aligned-bases",
       description: "123 (4→16)",
-      iterations: 200000,
+      iterations: 15000000,  // 约 1500万次
       inputDigits: [3, 2, 1, 0],
       fromBase: 4,
       toBase: 16
@@ -54,7 +54,7 @@ class BenchmarkApp {
       name: "Large Number",
       type: "large-number",
       description: "10^100 (10→16)",
-      iterations: 10000,
+      iterations: 2000000,  // 约 200万次
       inputDigits: Array(101).fill(0).map((_, i) => i === 0 ? 1 : 0),
       fromBase: 10,
       toBase: 16
@@ -63,7 +63,7 @@ class BenchmarkApp {
       name: "Binary to Hex",
       type: "power-of-two",
       description: "10101010 (2→16)",
-      iterations: 500000,
+      iterations: 12000000,  // 约 1200万次
       inputDigits: [0, 1, 0, 1, 0, 1, 0, 1],
       fromBase: 2,
       toBase: 16
@@ -72,7 +72,7 @@ class BenchmarkApp {
       name: "Hex to Decimal",
       type: "general",
       description: "FF2541 (16→10)",
-      iterations: 80000,
+      iterations: 2500000,  // 约 250万次
       inputDigits: [1, 4, 5, 2, 5, 2, 15, 15],
       fromBase: 16,
       toBase: 10
@@ -81,7 +81,7 @@ class BenchmarkApp {
       name: "Base 32 to 64",
       type: "power-of-two",
       description: "AZBYCX (32→64)",
-      iterations: 300000,
+      iterations: 5000000,  // 约 500万次
       inputDigits: [24, 2, 27, 1, 24, 2],
       fromBase: 32,
       toBase: 64
@@ -90,7 +90,7 @@ class BenchmarkApp {
       name: "Octal to Binary",
       type: "power-of-two",
       description: "755 (8→2)",
-      iterations: 400000,
+      iterations: 4000000,  // 约 400万次
       inputDigits: [5, 5, 7],
       fromBase: 8,
       toBase: 2
@@ -229,6 +229,7 @@ class BenchmarkApp {
     const error = document.getElementById('error');
     const runButton = document.getElementById('runAllBenchmarks') as HTMLButtonElement;
     const loadingText = document.getElementById('loadingText');
+    const tableBody = document.getElementById('tableBody');
 
     // Hide previous results and errors
     if (resultsTable) resultsTable.classList.add('hidden');
@@ -242,6 +243,20 @@ class BenchmarkApp {
 
       const results: Array<TestCase & BenchmarkResult> = [];
 
+      // Show results table immediately with empty body
+      if (resultsTable) {
+        resultsTable.classList.remove('hidden');
+      }
+      if (tableBody) {
+        tableBody.innerHTML = '';
+      }
+
+      // Hide summary initially
+      const summarySection = resultsTable?.querySelector('.summary-section') as HTMLElement;
+      if (summarySection) {
+        summarySection.style.display = 'none';
+      }
+
       // Run all benchmarks sequentially
       for (let i = 0; i < this.benchmarkTests.length; i++) {
         const testCase = this.benchmarkTests[i];
@@ -251,38 +266,43 @@ class BenchmarkApp {
           loadingText.textContent = `Running ${testCase.name}... (${i + 1}/${this.benchmarkTests.length})`;
         }
 
+        let result: BenchmarkResult;
+
         try {
-          const result = await run_quick_benchmark(
+          result = await run_quick_benchmark(
             testCase.type,
             testCase.iterations,
             new Uint32Array(testCase.inputDigits),
             testCase.fromBase,
             testCase.toBase
           );
-
-          results.push({
-            ...testCase,
-            ...result
-          });
         } catch (err) {
           console.error(`Error in ${testCase.name}:`, err);
-          results.push({
-            ...testCase,
+          result = {
             baseline_time: 0,
             optimized_time: 0,
             speedup: 0,
             baseline_result: [],
             optimized_result: [],
             is_correct: false
-          });
+          };
         }
+
+        const testResult = {
+          ...testCase,
+          ...result
+        };
+
+        results.push(testResult);
+
+        // Add result to table immediately
+        this.addResultToTable(testResult);
 
         // Small delay for UI update
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Display results
-      this.displayResultsTable(results);
+      // Display summary after all tests are complete
       this.displaySummary(results);
 
     } catch (err) {
@@ -295,6 +315,41 @@ class BenchmarkApp {
       if (loading) loading.classList.add('hidden');
       if (runButton) runButton.disabled = false;
     }
+  }
+
+  private addResultToTable(result: TestCase & BenchmarkResult) {
+    const tableBody = document.getElementById('tableBody');
+    if (!tableBody) return;
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="test-name">${result.name}</td>
+      <td>
+        <span class="test-type type-${result.type}">${result.type}</span>
+      </td>
+      <td>${result.baseline_time.toFixed(2)}</td>
+      <td>${result.optimized_time.toFixed(2)}</td>
+      <td>
+        <span class="speedup-value ${result.speedup > 1 ? 'speedup-positive' : 'speedup-negative'}">
+          ${result.speedup.toFixed(2)}×
+        </span>
+      </td>
+      <td class="${result.is_correct ? 'status-correct' : 'status-incorrect'}">
+        ${result.is_correct ? '✓ Correct' : '✗ Incorrect'}
+      </td>
+    `;
+
+    // Add fade-in animation
+    row.style.opacity = '0';
+    row.style.transform = 'translateY(-10px)';
+    tableBody.appendChild(row);
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      row.style.transition = 'all 0.3s ease';
+      row.style.opacity = '1';
+      row.style.transform = 'translateY(0)';
+    });
   }
 
   private displayResultsTable(results: Array<TestCase & BenchmarkResult>) {
@@ -353,6 +408,20 @@ class BenchmarkApp {
         <div class="summary-label">Time Saved</div>
       </div>
     `;
+
+    // Show summary section with animation
+    const summarySection = summaryStats.closest('.summary-section') as HTMLElement;
+    if (summarySection) {
+      summarySection.style.display = 'block';
+      summarySection.style.opacity = '0';
+      summarySection.style.transform = 'translateY(20px)';
+
+      requestAnimationFrame(() => {
+        summarySection.style.transition = 'all 0.5s ease';
+        summarySection.style.opacity = '1';
+        summarySection.style.transform = 'translateY(0)';
+      });
+    }
   }
 
   private async performConversion() {
@@ -502,10 +571,6 @@ class BenchmarkApp {
       const maxDigit = this.getDigitRepresentation(base - 1);
       const examples = this.getBaseExamples(base, 'upper');
       hintText = `Base ${base}: Use 0-9, A-Z, a-z (61=${maxDigit}) ${examples}`;
-    } else if (base <= 64) {
-      const maxDigit = this.getDigitRepresentation(base - 1);
-      const examples = this.getBaseExamples(base, 'upper');
-      hintText = `Base ${base}: Use 0-9, A-Z, a-z, @, [ (62=${maxDigit}) ${examples}`;
     } else {
       const examples = this.getBaseExamples(base, 'mixed');
       hintText = `Base ${base}: Use digits [0-${base-1}] ${examples}`;
@@ -518,8 +583,6 @@ class BenchmarkApp {
     if (value < 10) return value.toString();
     if (value < 36) return String.fromCharCode(65 + value - 10); // A-Z (10-35)
     if (value < 62) return String.fromCharCode(97 + value - 36); // a-z (36-61)
-    if (value === 62) return '@';
-    if (value === 63) return '[';
     return `[${value}]`;
   }
 
@@ -539,12 +602,6 @@ class BenchmarkApp {
         break;
       case 62:
         examples.push('(e.g., Z9, A1z)');
-        break;
-      case 63:
-        examples.push('(e.g., A@, 1[, [B)');
-        break;
-      case 64:
-        examples.push('(e.g., @@, A[, B[)');
         break;
       default:
         if (base <= 36) {
@@ -598,24 +655,61 @@ class BenchmarkApp {
   }
 
   private parseNumberInBase(str: string, base: number): bigint {
-    // 0-9, A-Z, a-z, @, [ for bases up to 64
-    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\';
+    // 0-9, A-Z, a-z for bases up to 62
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = 0n;
+    let i = 0;
 
-    for (let i = 0; i < str.length; i++) {
+    while (i < str.length) {
       const char = str[i];
-      let value = chars.indexOf(char);
+      let value: number;
 
-      // Try other cases if not found
-      if (value === -1) {
-        value = chars.indexOf(char.toUpperCase());
-      }
-      if (value === -1) {
-        value = chars.indexOf(char.toLowerCase());
+      // Handle [n] format for digits >= 64
+      if (char === '[' && i + 1 < str.length) {
+        let numStr = '';
+        let j = i + 1;
+
+        // Parse the number inside brackets
+        while (j < str.length && str[j] !== ']') {
+          if (str[j] >= '0' && str[j] <= '9') {
+            numStr += str[j];
+            j++;
+          } else {
+            throw new Error(`Invalid digit format "${char}" for base ${base}`);
+          }
+        }
+
+        if (j >= str.length || str[j] !== ']') {
+          throw new Error(`Unclosed bracket in digit "${str.substring(i)}" for base ${base}`);
+        }
+
+        if (numStr === '') {
+          throw new Error(`Empty bracket in digit "${str.substring(i)}" for base ${base}`);
+        }
+
+        value = parseInt(numStr, 10);
+        i = j + 1; // Skip past the ']'
+      } else {
+        // Handle regular characters (0-9, A-Z, a-z, @, [, \)
+        value = chars.indexOf(char);
+
+        // Try other cases if not found
+        if (value === -1) {
+          value = chars.indexOf(char.toUpperCase());
+        }
+        if (value === -1) {
+          value = chars.indexOf(char.toLowerCase());
+        }
+
+        if (value === -1) {
+          throw new Error(`Invalid digit "${char}" for base ${base}`);
+        }
+
+        i++;
       }
 
-      if (value === -1 || value >= base) {
-        throw new Error(`Invalid digit "${char}" for base ${base}`);
+      if (value >= base) {
+        throw new Error(`Digit value ${value} is too large for base ${base}`);
       }
 
       result = result * BigInt(base) + BigInt(value);
@@ -665,13 +759,8 @@ class BenchmarkApp {
       } else if (digit < 62) {
         // 36-61: Use a-z
         result += String.fromCharCode(97 + digit - 36);
-      } else if (digit === 62) {
-        // 62: Use @
-        result += '@';
-      } else if (digit === 63) {
-        // 63: Use [
-        result += '[';
       } else {
+        // 62 and above: Use [n] format
         result += `[${digit}]`;
       }
     }
