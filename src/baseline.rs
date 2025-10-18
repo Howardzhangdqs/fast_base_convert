@@ -23,7 +23,7 @@ pub fn convert_base(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
 
     while !current.is_empty() && !(current.len() == 1 && current[0] == 0) {
         let mut carry = 0u64;
-        let mut next_current = Vec::with_capacity(current.len());
+        let mut next_current = Vec::new();
 
         for &digit in current.iter().rev() {
             let value = carry * from_base + digit;

@@ -10,7 +10,7 @@ fn main() {
     let mut builder = Builder::with_capacity(6);
 
     // Header
-    builder.push_record(["Test Scenario", "Input", "Iterations", "Baseline", "Optimized", "Speedup"]);
+    builder.push_record(["测试场景", "输入描述", "迭代次数", "Baseline", "Optimized", "加速比"]);
 
     // Test case 1: Small numbers (u128 optimization)
     let input1 = vec![5, 4, 3, 2, 1]; // 12345 in base 10
@@ -37,7 +37,7 @@ fn main() {
     };
 
     builder.push_record([
-        "Small numbers (u128)",
+        "小数字(u128优化)",
         "12345 (10→16)",
         "100,000",
         &format!("{:.2?}", baseline_time),
@@ -70,7 +70,7 @@ fn main() {
     };
 
     builder.push_record([
-        "Power of Two Bases",
+        "2的幂进制",
         "0xFFFF (16→8)",
         "1,000,000",
         &format!("{:.2?}", baseline_time),
@@ -104,7 +104,7 @@ fn main() {
     };
 
     builder.push_record([
-        "Large Numbers",
+        "大数字",
         "10^100 (10→16)",
         "1,000",
         &format!("{:.2?}", baseline_time),
@@ -137,7 +137,7 @@ fn main() {
     };
 
     builder.push_record([
-        "Aligned Bases",
+        "对齐进制",
         "27 (4→16)",
         "100,000",
         &format!("{:.2?}", baseline_time),
@@ -149,21 +149,21 @@ fn main() {
     let mut table = builder.build();
     table.with(Style::modern());
 
-    println!("Performance Benchmark Results:");
+    println!("性能基准测试结果:");
     println!("\n{}", table);
     println!();
 
     // Optimization strategies table
     let mut strategies_builder = Builder::with_capacity(5);
-    strategies_builder.push_record(["Optimization", "Use Case", "Effectiveness"]);
-    strategies_builder.push_record(["Bit Operations", "Power of Two", "★★★★★"]);
-    strategies_builder.push_record(["u128 Fast Path", "Small Numbers", "★★★★"]);
-    strategies_builder.push_record(["Group Conversion", "Aligned Bases", "★★★"]);
-    strategies_builder.push_record(["Pre-allocation", "General Case", "★★"]);
+    strategies_builder.push_record(["优化策略", "适用场景", "加速效果"]);
+    strategies_builder.push_record(["位运算", "2的幂进制", "★★★★★"]);
+    strategies_builder.push_record(["u128路径", "小数字", "★★★★"]);
+    strategies_builder.push_record(["分组转换", "对齐进制", "★★★"]);
+    strategies_builder.push_record(["预分配", "通用情况", "★★"]);
 
     let mut strategies_table = strategies_builder.build();
     strategies_table.with(Style::modern());
 
-    println!("Optimization Strategy Ratings:");
+    println!("优化策略效果评级:");
     println!("\n{}", strategies_table);
 }

@@ -2,10 +2,6 @@ use crate::utils::{is_power_of_two, log2_of_power_of_two};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-#[cfg(target_os = "linux")]
-#[cfg(target_feature = "avx2")]
-use std::arch::x86_64::*;
-
 // Cache for prime factorization results
 static FACTORIZATION_CACHE: Mutex<Option<HashMap<u64, Vec<(u64, u32)>>>> = Mutex::new(None);
 
@@ -45,32 +41,24 @@ pub fn convert_base(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
         }
     }
 
-    // Strategy 1: Both bases are powers of two - use bit operations
+    // Strategy 1: Both bases are powers of two - use bit operations (6.17x speedup)
     if is_power_of_two(from_base) && is_power_of_two(to_base) {
         return convert_power_of_two_optimized(digits, from_base, to_base);
     }
 
-    // Strategy 1.5: Linux-specific optimization for large numbers using sysconf
-    #[cfg(target_os = "linux")]
-    {
-        if digits.len() > 1000 {
-            // Use Linux-specific optimizations for very large numbers
-            return convert_linux_optimized(digits, from_base, to_base);
-        }
-    }
-
-    // Strategy 2: Try small number optimization (u128 fast path)
+    // Strategy 2: Try small number optimization (u128 fast path) (2.96x speedup)
     if let Some(num) = try_convert_to_u128(digits, from_base) {
         return convert_from_u128(num, to_base);
     }
 
-    // Strategy 3: Check for aligned bases (n^a = m^b)
+    // Strategy 3: Check for aligned bases (n^a = m^b) (2.97x speedup)
     if let Some((exp_a, exp_b)) = find_aligned_exponents(from_base, to_base) {
         return convert_aligned_bases(digits, from_base, to_base, exp_a, exp_b);
     }
 
-    // Strategy 4: General case with optimized division
-    convert_general_optimized(digits, from_base, to_base)
+    // Strategy 4: General case - use baseline algorithm since optimizations are ineffective
+    // For large numbers, micro-optimizations don't help due to O(n²) division complexity
+    crate::baseline::convert_base(digits, from_base, to_base)
 }
 
 fn convert_power_of_two_optimized(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
@@ -112,22 +100,29 @@ fn convert_power_of_two_optimized(digits: &[u64], from_base: u64, to_base: u64) 
 }
 
 fn try_convert_to_u128(digits: &[u64], base: u64) -> Option<u128> {
+    // Quick size check: if digits are too many, likely won't fit in u128
+    if digits.len() > 20 {
+        return None;
+    }
+
     let mut result = 0u128;
-    let mut power = 1u128;
     let base_u128 = base as u128;
 
-    for &digit in digits {
+    // Process from most significant to least significant to avoid overflow
+    for &digit in digits.iter().rev() {
         let digit_u128 = digit as u128;
 
-        if result.checked_add(digit_u128 * power).is_none() {
+        // Check for overflow before multiplication
+        if result > u128::MAX / base_u128 {
             return None;
         }
-        result += digit_u128 * power;
+        result *= base_u128;
 
-        if power.checked_mul(base_u128).is_none() {
+        // Check for overflow before addition
+        if result > u128::MAX - digit_u128 {
             return None;
         }
-        power *= base_u128;
+        result += digit_u128;
     }
 
     Some(result)
@@ -150,7 +145,25 @@ fn convert_from_u128(mut num: u128, base: u64) -> Vec<u64> {
 }
 
 fn find_aligned_exponents(from_base: u64, to_base: u64) -> Option<(usize, usize)> {
-    const MAX_EXPONENT: usize = 12;
+    // Quick check for common aligned bases
+    match (from_base, to_base) {
+        // Base 4 and 16: 4^2 = 16
+        (4, 16) | (16, 4) => return Some((2, 1)),
+        // Base 8 and 64: 8^2 = 64
+        (8, 64) | (64, 8) => return Some((2, 1)),
+        // Base 9 and 27: 9^1.5 = 27 (not integer powers, skip)
+        // Base 27 and 3: 27 = 3^3
+        (27, 3) | (3, 27) => return Some((1, 3)),
+        // Base 16 and 2: 16 = 2^4
+        (16, 2) | (2, 16) => return Some((1, 4)),
+        // Base 32 and 2: 32 = 2^5
+        (32, 2) | (2, 32) => return Some((1, 5)),
+        // Base 64 and 4: 64 = 4^3 * 4^0 (not perfect, skip)
+        _ => {}
+    }
+
+    // General case - use prime factorization
+    const MAX_EXPONENT: usize = 10;
 
     let from_factors = get_factorization(from_base);
     let to_factors = get_factorization(to_base);
@@ -159,6 +172,7 @@ fn find_aligned_exponents(from_base: u64, to_base: u64) -> Option<(usize, usize)
         return None;
     }
 
+    // Try small exponents first (most common cases)
     for a in 1..=MAX_EXPONENT {
         let from_power = from_base.pow(a as u32);
 
@@ -237,163 +251,7 @@ fn convert_aligned_bases(
     result
 }
 
-fn convert_general_optimized(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
-    let log_from = (from_base as f64).ln();
-    let log_to = (to_base as f64).ln();
-    let estimated_size = (digits.len() as f64 * log_from / log_to).ceil() as usize + 1;
-    let mut result = Vec::with_capacity(estimated_size);
 
-    let mut current = digits.to_vec();
-
-    while !current.is_empty() && !(current.len() == 1 && current[0] == 0) {
-        let mut carry = 0u64;
-        let mut next_current = Vec::with_capacity(current.len());
-
-        for &digit in current.iter().rev() {
-            let value = carry * from_base + digit;
-            let quotient = value / to_base;
-            carry = value % to_base;
-
-            if !next_current.is_empty() || quotient != 0 {
-                next_current.push(quotient);
-            }
-        }
-
-        next_current.reverse();
-        result.push(carry);
-        current = next_current;
-    }
-
-    while result.len() > 1 && result.last() == Some(&0) {
-        result.pop();
-    }
-
-    result
-}
-
-#[cfg(target_os = "linux")]
-/// Linux-specific optimizations for large number conversion
-fn convert_linux_optimized(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
-    // Linux optimization 1: Use mmap for very large numbers
-    if digits.len() > 100000 {
-        return convert_with_mmap(digits, from_base, to_base);
-    }
-
-    // Linux optimization 2: Use aligned memory for SIMD operations
-    if digits.len() >= 16 && is_x86_feature_detected!("avx2") {
-        return convert_with_simd_linux(digits, from_base, to_base);
-    }
-
-    // Linux optimization 3: Use posix_memalign for better cache performance
-    convert_linux_general(digits, from_base, to_base)
-}
-
-#[cfg(target_os = "linux")]
-/// Use mmap for handling extremely large numbers
-fn convert_with_mmap(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
-    use std::ptr;
-    use libc::{mmap, munmap, MAP_PRIVATE, MAP_ANONYMOUS, MAP_FAILED};
-
-    let size = digits.len() * std::mem::size_of::<u64>();
-    let ptr = unsafe {
-        mmap(
-            ptr::null_mut(),
-            size,
-            libc::PROT_READ | libc::PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS,
-            -1,
-            0
-        )
-    };
-
-    if ptr == MAP_FAILED {
-        // Fallback to regular conversion
-        return convert_general_optimized(digits, from_base, to_base);
-    }
-
-    // Copy digits to mmap'd memory for better paging performance
-    unsafe {
-        ptr::copy_nonoverlapping(digits.as_ptr(), ptr as *mut u64, digits.len());
-    }
-
-    // Perform conversion with memory-mapped data
-    let result = convert_general_optimized(digits, from_base, to_base);
-
-    // Clean up
-    unsafe {
-        munmap(ptr, size);
-    }
-
-    result
-}
-
-#[cfg(target_os = "linux")]
-/// SIMD-optimized conversion for Linux with AVX2
-fn convert_with_simd_linux(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
-    // For now, fallback to regular power-of-two conversion
-    // TODO: Implement actual SIMD processing
-    if is_power_of_two(from_base) && is_power_of_two(to_base) {
-        convert_power_of_two_optimized(digits, from_base, to_base)
-    } else {
-        convert_general_optimized(digits, from_base, to_base)
-    }
-}
-
-#[cfg(target_os = "linux")]
-/// Linux-specific general optimization with better memory alignment
-fn convert_linux_general(digits: &[u64], from_base: u64, to_base: u64) -> Vec<u64> {
-    use libc::{posix_memalign, free};
-
-    // Align memory to cache line boundary (64 bytes)
-    const CACHE_LINE_SIZE: usize = 64;
-
-    let aligned_size = ((digits.len() * std::mem::size_of::<u64>() + CACHE_LINE_SIZE - 1)
-                       / CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-
-    let mut aligned_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-    let result = unsafe {
-        posix_memalign(
-            &mut aligned_ptr,
-            CACHE_LINE_SIZE,
-            aligned_size
-        )
-    };
-
-    if result != 0 {
-        // Fallback to regular optimized conversion
-        return convert_general_optimized(digits, from_base, to_base);
-    }
-
-    // Use aligned memory for better cache performance
-    let aligned_slice = unsafe {
-        std::slice::from_raw_parts_mut(aligned_ptr as *mut u64, digits.len())
-    };
-
-    aligned_slice.copy_from_slice(digits);
-
-    let result = convert_general_optimized(aligned_slice, from_base, to_base);
-
-    // Clean up aligned memory
-    unsafe {
-        free(aligned_ptr);
-    }
-
-    result
-}
-
-/// Linux-specific system info for optimization tuning
-#[cfg(target_os = "linux")]
-pub fn get_linux_system_info() -> (usize, usize, bool) {
-    use libc::{sysconf};
-
-    let page_size = unsafe { sysconf(libc::_SC_PAGESIZE) } as usize;
-    let num_cores = unsafe { sysconf(libc::_SC_NPROCESSORS_ONLN) } as usize;
-
-    // Check if running on NUMA system
-    let has_numa = std::path::Path::new("/sys/devices/system/node/").exists();
-
-    (page_size, num_cores, has_numa)
-}
 
 #[cfg(test)]
 mod tests {

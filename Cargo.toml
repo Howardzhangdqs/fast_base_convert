@@ -2,16 +2,13 @@
 name = "fast_base_convert"
 version = "0.1.0"
 edition = "2021"
-authors = ["HowardZhangdqs zjh@shanghaiit.com"]
+authors = ["Your Name <your.email@example.com>"]
 description = "A high-performance base conversion library for Rust"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/Howardzhangdqs/fast_base_convert"
+repository = "https://github.com/yourusername/fast_base_convert"
 
 [dependencies]
 tabled = "0.14"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
