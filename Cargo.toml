@@ -2,10 +2,10 @@
 name = "fast_base_convert"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Jinhao Zhang zjh@shanghaiit.com"]
 description = "A high-performance base conversion library for Rust"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourusername/fast_base_convert"
+repository = "https://github.com/Howardzhangdqs/fast_base_convert"
 
 [dependencies]
 tabled = "0.14"

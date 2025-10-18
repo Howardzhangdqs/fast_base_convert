@@ -1,99 +1,97 @@
 # Fast Base Convert
 
-一个高性能的基数转换库，专注于算法层面的优化。
+A high-performance base conversion library focused on algorithmic optimization.
 
-## 特性
+## Features
 
-- 支持任意进制转换（2-65536）
-- 多种优化策略：
-  - **位运算优化**：2的幂进制使用直接位移操作
-  - **u128快速路径**：小数字使用128位整数运算
-  - **对齐进制优化**：使用质因数分解分组转换
-  - **基准算法**：大数字使用标准除法算法
+- Supports arbitrary base conversion (2-65536)
+- Multiple optimization strategies:
+  - **Bitwise Optimization**: Direct shift operations for power-of-two bases
+  - **u128 Fast Path**: 128-bit integer operations for small numbers
+  - **Aligned Base Optimization**: Grouped conversion using prime factorization
+  - **Baseline Algorithm**: Standard division algorithm for large numbers
 
-## 性能基准测试结果
+## Performance Benchmark Results
 
-### 算法优化效果
-- **位运算优化**（2的幂进制）：**6.23倍**加速
-- **u128快速路径**（小数字）：**3.53倍**加速
-- **对齐进制优化**（对齐进制）：**2.98倍**加速
-- **基础除法**（通用情况）：基准实现
+### Algorithm Optimization Effects
+- **Bitwise Optimization** (power-of-two bases): **6.23x** speedup
+- **u128 Fast Path** (small numbers): **3.53x** speedup
+- **Aligned Base Optimization** (aligned bases): **2.98x** speedup
+- **Baseline Division** (general case): baseline implementation
 
-### 测试条件
-- 每项测试执行时间≥1秒
-- 使用真实基准版本对比
-- 25个单元测试 + 6个集成测试全部通过
+### Test Conditions
+- Each test runs for ≥1 second
+- Compared against real baseline version
+- All 25 unit tests + 6 integration tests passed
 
-## 使用
+## Usage
 
 ```rust
 use fast_base_convert::{convert_base, convert_base_baseline};
 
-// 自动优化转换
+// Automatic optimized conversion
 let input = vec![5, 4, 3, 2, 1]; // 12345 in base 10
 let result = convert_base(&input, 10, 16);
 
-// 基准转换
+// Baseline conversion
 let baseline_result = convert_base_baseline(&input, 10, 16);
 
-// 结果: [9, 3, 0, 3] (0x3039 in hex)
+// Result: [9, 3, 0, 3] (0x3039 in hex)
 ```
 
-## 运行测试
+## Run Tests
 
 ```bash
-cargo test                          # 单元测试 + 集成测试
-cargo run --example benchmark        # 标准性能测试
-cargo run --example algorithm_benchmark  # 算法特定基准测试
+cargo test                          # Unit tests + integration tests
+cargo run --example benchmark        # Standard performance benchmark
+cargo run --example algorithm_benchmark  # Algorithm-specific benchmark
 ```
 
-## 优化策略详解
+## Optimization Strategies Explained
 
-### 1. 位运算优化 (6.23x加速)
-- **适用场景**：2的幂进制转换（如16→8, 32→2）
-- **算法**：使用位移操作代替除法
-- **复杂度**：从O(n)降到O(1)
+### 1. Bitwise Optimization (6.23x speedup)
+- **Applicable Scenario**: Power-of-two base conversion (e.g. 16→8, 32→2)
+- **Algorithm**: Use shift operations instead of division
+- **Complexity**: Reduced from O(n) to O(1)
 
-### 2. u128快速路径 (3.53x加速)
-- **适用场景**：能放入128位的小数字
-- **算法**：直接使用硬件整数运算
-- **优势**：避免大数运算开销
+### 2. u128 Fast Path (3.53x speedup)
+- **Applicable Scenario**: Numbers that fit in 128 bits
+- **Algorithm**: Direct hardware integer operations
+- **Advantage**: Avoids big integer overhead
 
-### 3. 对齐进制优化 (2.98x加速)
-- **适用场景**：进制满足n^a = m^b关系（如4²=16）
-- **算法**：质因数分解分组转换
-- **优势**：减少迭代次数
+### 3. Aligned Base Optimization (2.98x speedup)
+- **Applicable Scenario**: Bases satisfying n^a = m^b (e.g. 4²=16)
+- **Algorithm**: Grouped conversion via prime factorization
+- **Advantage**: Reduces iteration count
 
-### 4. 基础除法算法
-- **适用场景**：通用情况和大数字
-- **算法**：标准除法取余算法
-- **特点**：无伪优化，诚实实现
+### 4. Baseline Division Algorithm
+- **Applicable Scenario**: General case and large numbers
+- **Algorithm**: Standard division and remainder algorithm
 
-## 项目结构
+## Project Structure
 
 ```
 src/
-├── lib.rs          # 库入口
-├── baseline.rs     # 基础算法实现
-├── optimized.rs    # 优化算法实现
-└── utils.rs        # 工具函数
+├── lib.rs          # Library entry
+├── baseline.rs     # Baseline algorithm implementation
+├── optimized.rs    # Optimized algorithm implementation
+└── utils.rs        # Utility functions
 
 examples/
-├── benchmark.rs           # 标准性能测试
-└── algorithm_benchmark.rs # 算法特定基准测试
+├── benchmark.rs           # Standard performance benchmark
+└── algorithm_benchmark.rs # Algorithm-specific benchmark
 
 tests/
-└── integration_tests.rs   # 集成测试
+└── integration_tests.rs   # Integration tests
 ```
 
-## 技术亮点
+## Technical Highlights
 
-- **算法复杂度优化**：优先改进时间复杂度而非常数因子
-- **快速路径检测**：常见情况优先处理
-- **诚实的设计**：无效优化直接使用基准实现
-- **全面测试**：单元测试 + 集成测试 + 性能基准测试
-- **教育价值**：展示哪些优化真正有效
+- **Algorithmic Complexity Optimization**: Prioritizes improving time complexity over constant factors
+- **Fast Path Detection**: Handles common cases first
+- **Comprehensive Testing**: Unit tests + integration tests + performance benchmarks
+- **Educational Value**: Demonstrates which optimizations are truly effective
 
-## 许可证
+## License
 
-MIT OR Apache-2.0
+MIT
