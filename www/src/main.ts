@@ -496,12 +496,12 @@ class BenchmarkApp {
       hintText = `Base ${base}: Use digits 0-${base - 1}`;
     } else if (base <= 36) {
       const maxDigit = this.getDigitRepresentation(base - 1);
-      const examples = this.getBaseExamples(base, 'lower');
-      hintText = `Base ${base}: Use 0-9, A-${maxDigit.toUpperCase()} ${examples}`;
+      const examples = this.getBaseExamples(base, 'upper');
+      hintText = `Base ${base}: Use 0-9, A-${maxDigit} ${examples}`;
     } else if (base <= 62) {
       const maxDigit = this.getDigitRepresentation(base - 1);
-      const examples = this.getBaseExamples(base, 'mixed');
-      hintText = `Base ${base}: Use 0-9, a-z, A-Z (35=${maxDigit}) ${examples}`;
+      const examples = this.getBaseExamples(base, 'upper');
+      hintText = `Base ${base}: Use 0-9, A-Z, a-z (61=${maxDigit}) ${examples}`;
     } else {
       const examples = this.getBaseExamples(base, 'mixed');
       hintText = `Base ${base}: Use digits [0-${base-1}] ${examples}`;
@@ -532,7 +532,7 @@ class BenchmarkApp {
         examples.push('(e.g., Z, 1K2)');
         break;
       case 62:
-        examples.push('(e.g., z, 1a, A0)');
+        examples.push('(e.g., Z9, A1z)');
         break;
       default:
         if (base <= 36) {
@@ -541,7 +541,7 @@ class BenchmarkApp {
           const digit2 = this.getDigitRepresentation(maxVal);
           examples.push(`(e.g., ${digit1}${digit2})`);
         } else {
-          examples.push('(e.g., [10][35])');
+          examples.push('(e.g., [10][61])');
         }
     }
 
@@ -584,7 +584,7 @@ class BenchmarkApp {
   }
 
   private parseNumberInBase(str: string, base: number): bigint {
-    const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = 0n;
 
     for (let i = 0; i < str.length; i++) {
@@ -593,7 +593,7 @@ class BenchmarkApp {
 
       // Try lowercase if uppercase not found
       if (value === -1) {
-        value = chars.indexOf(char.toLowerCase());
+        value = chars.indexOf(char.toUpperCase());
       }
 
       if (value === -1 || value >= base) {
@@ -635,7 +635,6 @@ class BenchmarkApp {
     if (digits.length === 0) return '0';
     if (digits.length === 1 && digits[0] === 0) return '0';
 
-    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = '';
 
     for (let i = digits.length - 1; i >= 0; i--) {
@@ -643,9 +642,11 @@ class BenchmarkApp {
       if (digit < 10) {
         result += digit.toString();
       } else if (digit < 36) {
-        result += chars[digit];
+        // 10-35: Use A-Z
+        result += String.fromCharCode(65 + digit - 10);
       } else if (digit < 62) {
-        result += chars[digit];
+        // 36-61: Use a-z
+        result += String.fromCharCode(97 + digit - 36);
       } else {
         result += `[${digit}]`;
       }
