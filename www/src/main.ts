@@ -352,34 +352,7 @@ class BenchmarkApp {
     });
   }
 
-  private displayResultsTable(results: Array<TestCase & BenchmarkResult>) {
-    const tableBody = document.getElementById('tableBody');
-    const resultsTable = document.getElementById('resultsTable');
-
-    if (!tableBody || !resultsTable) return;
-
-    resultsTable.classList.remove('hidden');
-
-    tableBody.innerHTML = results.map(result => `
-      <tr>
-        <td class="test-name">${result.name}</td>
-        <td>
-          <span class="test-type type-${result.type}">${result.type}</span>
-        </td>
-        <td>${result.baseline_time.toFixed(2)}</td>
-        <td>${result.optimized_time.toFixed(2)}</td>
-        <td>
-          <span class="speedup-value ${result.speedup > 1 ? 'speedup-positive' : 'speedup-negative'}">
-            ${result.speedup.toFixed(2)}×
-          </span>
-        </td>
-        <td class="${result.is_correct ? 'status-correct' : 'status-incorrect'}">
-          ${result.is_correct ? '✓ Correct' : '✗ Incorrect'}
-        </td>
-      </tr>
-    `).join('');
-  }
-
+  
   private displaySummary(results: Array<TestCase & BenchmarkResult>) {
     const summaryStats = document.getElementById('summaryStats');
     if (!summaryStats) return;
