@@ -6,10 +6,11 @@ Cargo.lock
 dist
 
 www/dist
-
+www/pkg
 www/node_modules
 
 node_modules
 
 package-lock.json
 pnpm-lock.yaml
+bun.lock
