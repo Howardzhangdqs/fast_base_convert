@@ -1,0 +1,393 @@
+\documentclass[10pt]{beamer}
+
+\usepackage{beamerthemesplit} % 加载主题宏包
+\usetheme{Boadilla}
+\usefonttheme{serif}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm,algorithmic}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% 调整页面边距
+\setbeamersize{text margin left=0.5cm,text margin right=0.5cm}
+
+% Paragraph formatting - no indentation
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}  % 减少段落间距
+
+% Code listing style - 调整字体大小
+\lstset{
+  basicstyle=\ttfamily\tiny,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  breaklines=true,
+  frame=single,
+  captionpos=b
+}
+
+% 调整算法环境大小
+\floatname{algorithm}{算法}
+\restylefloat{algorithm}
+
+% Title
+\title{Performance Analysis of Base Conversion Algorithms}
+
+% Authors
+\author{
+  Jinhao Zhang \\
+  Nanjing University of Information Science and Technology \\
+  202483710036@nuist.edu.com
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Abstract}
+\small
+Base conversion is a fundamental operation in computer science, with applications ranging from cryptographic implementations to data encoding systems. This paper presents a comprehensive empirical study of various optimization strategies for base conversion algorithms.
+
+\vspace{0.2cm}
+Key findings:
+\begin{itemize}
+\item 6.31× speedup for power-of-two conversions
+\item 3.70× for small numbers
+\item 2.91× for aligned bases
+\end{itemize}
+
+\vspace{0.2cm}
+Code repo: \href{https://github.com/Howardzhangdqs/fast_base_convert}{\texttt{github.com/Howardzhangdqs/fast\_base\_convert}}\\
+Web application: \href{https://howardzhangdqs.github.io/fast_base_convert/}{\texttt{howardzhangdqs.github.io/fast\_base\_convert}}
+\end{frame}
+
+\begin{frame}{Introduction}
+Base conversion is the process of representing a number in different numeral systems, essential for various computing applications.
+
+\vspace{0.3cm}
+\textbf{Research Objectives:}
+\begin{itemize}
+\item Implement and evaluate multiple optimization strategies
+\item Provide empirical performance measurements
+\item Analyze effectiveness of different approaches
+\item Identify scenarios where optimizations provide benefits
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Key Finding:} Algorithm complexity improvements yield substantial performance gains (up to 6.31×), while constant-factor optimizations provide minimal benefits for large numbers.
+\end{frame}
+
+\begin{frame}{Background: Base Conversion Fundamentals}
+Given a number represented as digits $[d_0, d_1, ..., d_{n-1}]$ in base $b_1$, the base conversion to base $b_2$ involves repeatedly dividing the number by $b_2$ and collecting remainders.
+
+\vspace{0.3cm}
+The standard algorithm processes digits from most significant to least significant:
+\end{frame}
+
+\begin{frame}{Standard Base Conversion Algorithm}
+\begin{algorithm}[H]
+\caption{Standard Base Conversion}
+\begin{algorithmic}[1]
+\WHILE{current number $> 0$}
+  \STATE carry $\gets$ 0
+  \FOR{each digit from least significant to most significant}
+    \STATE value $\gets$ carry $\times$ $b_1$ + digit
+    \STATE quotient $\gets$ value $\div$ $b_2$     \STATE carry $\gets$ value $\bmod$ $b_2$     \STATE add quotient to next iteration if quotient $> 0$   \ENDFOR
+  \STATE add carry to result
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
+\end{frame}
+
+\begin{frame}{Optimization Opportunities}
+Several optimization opportunities exist for specific scenarios:
+\begin{itemize}
+\item \textbf{Power-of-two bases:} Can leverage bit manipulation operations
+\item \textbf{Small numbers:} Can fit within native integer types
+\item \textbf{Aligned bases:} Can exploit mathematical relationships
+\item \textbf{Large numbers:} Require algorithmic improvements
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Optimization Strategy 1: Bit Manipulation}
+When both source and target bases are powers of two, direct bit manipulation can replace expensive division operations.
+
+\vspace{0.3cm}
+For bases $b_1 = 2^{k_1}$ and $b_2 = 2^{k_2}$:
+\begin{itemize}
+\item Division by $b_2$ becomes right shift by $k_2$ bits
+\item Modulo by $b_2$ becomes bitwise AND with $(2^{k_2} - 1)$ \item Multiplication by $b_1$ becomes left shift by $k_1$ bits
+\end{itemize}
+
+\vspace{0.3cm}
+This optimization reduces time complexity from $O(n \cdot \text{cost\_division})$ to $O(n \cdot \text{cost\_bit\_ops})$.
+\end{frame}
+
+\begin{frame}[fragile]{Bit Manipulation Algorithm}
+\begin{algorithm}[H]
+\caption{Bit Manipulation Base Conversion}
+\begin{algorithmic}[1]
+\scriptsize
+\REQUIRE Input digits in base $2^{k_1}$, target shift $k_2$ \ENSURE Output digits in base $2^{k_2}$ \STATE $k_1 \gets \log_2(\text{source base})$, $k_2 \gets \log_2(\text{target base})$ \STATE total\_bits $\gets (n-1) \times k_1 + \text{msb\_bits}(d_{n-1})$ \STATE output\_size $\gets \lceil$ total\_bits / $k_2 \rceil$ \STATE result $\gets$ array of size output\_size
+\STATE buffer $\gets 0$, buffer\_bits $\gets 0$ \FOR{each digit $d_i$ in input}
+  \STATE buffer $\gets$ buffer $|$ ($d_i \ll$ buffer\_bits)
+  \STATE buffer\_bits $\gets$ buffer\_bits $+$ $k_1$   \WHILE{buffer\_bits $\geq k_2$}
+    \STATE output $[$ buffer\_bits $-$ $k_2$ $]$ $\gets$ buffer $\&$ $(2^{k_2} - 1)$     \STATE buffer $\gets$ buffer $\gg$ $k_2$     \STATE buffer\_bits $\gets$ buffer\_bits $-$ $k_2$   \ENDWHILE
+\ENDFOR
+\IF{buffer\_bits $> 0$}
+  \STATE output $[$ buffer\_bits $-$ $k_2$ $]$ $\gets$ buffer
+\ENDIF
+\RETURN result after removing leading zeros
+\end{algorithmic}
+\end{algorithm}
+\end{frame}
+
+\begin{frame}{Optimization Strategy 2: U128 Fast-Path}
+For numbers that can fit within 128 bits, native integer arithmetic can be used instead of arbitrary-precision arithmetic.
+
+\vspace{0.3cm}
+\textbf{Approach:}
+\begin{itemize}
+\item Attempt to convert input number to a u128 integer
+\item Perform conversion using standard integer operations if successful
+\item Fall back to general algorithm if overflow occurs
+\end{itemize}
+
+\vspace{0.3cm}
+Particularly effective for numbers with fewer than approximately 19 decimal digits when converting to/from base 10.
+\end{frame}
+
+\begin{frame}[fragile]{U128 Fast-Path Algorithm}
+\begin{algorithm}[H]
+\caption{U128 Fast-Path Conversion}
+\begin{algorithmic}[1]
+\scriptsize
+\REQUIRE Input digits in base $b$, target base $t$ \ENSURE Output digits in base $t$ or $\bot$ if overflow
+\STATE result $\gets 0$ (as u128)
+\STATE power $\gets 1$ (as u128)
+\STATE base\_u128 $\gets b$ (as u128)
+\FOR{each digit $d_i$ in input (from least to most significant)}
+  \STATE digit\_u128 $\gets d_i$ (as u128)
+  \IF{result $+$ digit\_u128 $\times$ power would overflow u128}
+    \RETURN $\bot$ // Signal overflow
+  \ENDIF
+  \STATE result $\gets$ result $+$ digit\_u128 $\times$ power
+  \IF{power $\times$ base\_u128 would overflow u128}
+    \RETURN $\bot$ // Signal overflow
+  \ENDIF
+  \STATE power $\gets$ power $\times$ base\_u128
+\ENDFOR
+\STATE output $\gets$ empty array
+\STATE target\_u128 $\gets t$ (as u128)
+\WHILE{result $> 0$}
+  \STATE output.append(result mod target\_u128)
+  \STATE result $\gets$ result $\div$ target\_u128
+\ENDWHILE
+\RETURN output
+\end{algorithmic}
+\end{algorithm}
+\end{frame}
+
+\begin{frame}{Optimization Strategy 3: Grouped Conversion}
+When source and target bases are mathematically aligned ($b_1^a = b_2^b$), process digits in groups.
+
+\vspace{0.3cm}
+\textbf{Key Insight:} $a$ digits in base $b_1$ correspond to exactly $b$ digits in base $b_2$.
+
+\vspace{0.3cm}
+\textbf{Algorithm:}
+\begin{itemize}
+\item Factor both bases to check for alignment
+\item Find exponents $a, b$ such that $b_1^a = b_2^b$ \item Process input digits in chunks of size $a$ \item Convert each chunk using u128 arithmetic
+\item Output $b$ digits for each input chunk
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Grouped Conversion Algorithm}
+\begin{algorithm}[H]
+\caption{Grouped Conversion for Aligned Bases}
+\begin{algorithmic}[1]
+\scriptsize
+\REQUIRE Input digits in base $b_1$, target base $b_2$, exponents $a, b$ where $b_1^a = b_2^b$ \ENSURE Output digits in base $b_2$ \STATE precompute $\gets$ array of size $a$ \STATE precompute$[0]$ $\gets 1$ \FOR{$i$ from 1 to $a-1$}
+  \STATE precompute$[i]$ $\gets$ precompute$[i-1]$ $\times b_1$ \ENDFOR
+\STATE output $\gets$ empty array
+\FOR{each chunk $C = [d_j, d_{j+1}, ..., d_{j+a-1}]$ in input}
+  \STATE value $\gets 0$ (as u128)
+  \FOR{$i$ from 0 to $|C|-1$}
+    \STATE value $\gets$ value $+$ $C[i]$ $\times$ precompute$[i]$   \ENDFOR
+  \FOR{$k$ from 0 to $b-1$}
+    \STATE output.append(value mod $b_2$)
+    \STATE value $\gets$ value $\div$ $b_2$   \ENDFOR
+\ENDFOR
+\RETURN output after removing leading zeros
+\end{algorithmic}
+\end{algorithm}
+\end{frame}
+
+\begin{frame}{Optimization Strategy 4: Optimized Division}
+For general cases where no special relationship exists between bases, apply micro-optimizations:
+
+\vspace{0.3cm}
+\begin{itemize}
+\item Loop unrolling to process multiple digits per iteration
+\item Memory pre-allocation to estimate output size
+\item Vector reuse by swapping vectors instead of reallocating
+\item Cache-friendly access to optimize memory access patterns
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Implementation Details}
+
+\textbf{Algorithm Implementation:}
+\begin{itemize}
+\item Implemented all algorithms in Rust
+\item Comprehensive test suites (25 unit tests, 6 integration tests)
+\item Performance benchmarks with controlled execution times
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Web Application:}
+\begin{itemize}
+\item Frontend: TypeScript and HTML5
+\item Core algorithms compiled to WebAssembly
+\item Features:
+  \begin{itemize}
+  \item Real-time conversion between arbitrary bases (2-65536)
+  \item Support for bracket notation for bases beyond 62
+  \item Progressive benchmark visualization
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Benchmark Methodology}
+\begin{itemize}
+\item Each test runs for minimum 1 second for statistical significance
+\item Tests use realistic data sizes and conversion scenarios
+\item Performance measured using Rust's high-resolution timing
+\item All tests validate correctness by comparing with baseline
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Test Scenarios:}
+\begin{itemize}
+\item Small numbers (5 digits) - test u128 fast-path
+\item Power-of-two bases (4 digits) - test bit manipulation
+\item Aligned bases (4 digits) - test grouped conversion
+\item Large numbers (1000 digits) - test general case
+\item Very large numbers (2500 digits) - test chunked processing
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Performance Benchmark Results}
+\begin{table}[H]
+\centering
+\caption{Performance Benchmark Results}
+\label{tab:performance}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Optimization} & \textbf{Input Size} & \textbf{Baseline} & \textbf{Optimized} & \textbf{Speedup} \\
+\midrule
+Bit Manipulation & 4 digits & 9300ms & 1474ms & 6.31× \\
+U128 Fast-Path & 5 digits & 963ms & 261ms & 3.70× \\
+Grouped Conversion & 4 digits & 721ms & 248ms & 2.91× \\
+General Division & 1000 digits & 1060ms & 1250ms & 0.85× \\
+Chunked Processing & 2500 digits & 189ms & 200ms & 0.94× \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{Analysis of Optimization Effectiveness}
+\textbf{Highly Effective Optimizations:}
+\begin{itemize}
+\item \textbf{Bit Manipulation (6.31× speedup):} Replaces expensive division with bitwise operations
+\item \textbf{U128 Fast-Path (3.70× speedup):} Leverages native CPU instructions for 128-bit arithmetic
+\item \textbf{Grouped Conversion (2.91× speedup):} Reduces number of division operations through mathematical insights
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Limited Benefit Optimizations:}
+\begin{itemize}
+\item \textbf{General Division (0.85× speedup):} Micro-optimizations cannot overcome $O(n^2)$ complexity
+\item \textbf{Chunked Processing (0.94× speedup):} Overhead outweighs benefits for large numbers
+\end{itemize}
+\end{frame}
+
+\begin{frame}{WebAssembly Performance Considerations}
+Benchmark results from native Rust execution on local machine.
+
+\vspace{0.3cm}
+When compiled to WebAssembly and executed in browser:
+\begin{itemize}
+\item Performance characteristics may vary due to:
+  \begin{itemize}
+  \item JavaScript-WebAssembly interoperability overhead
+  \item Browser-specific optimizations
+  \end{itemize}
+\item Comparable performance trends with slightly reduced speedup ratios (10-20\% lower)
+\item Relative performance differences between optimization strategies remain consistent
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Discussion}
+\textbf{Key Insight:} Algorithm complexity improvements significantly outperform constant-factor optimizations.
+
+\vspace{0.3cm}
+\textbf{Phenomenon Explanation:}
+\begin{itemize}
+\item Division-based algorithm's $O(n^2)$ complexity dominates performance for large inputs
+\item Quadratic growth in operations becomes primary bottleneck
+\item Efficient implementation cannot overcome fundamental complexity limitations
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusion}
+\textbf{Key Findings:}
+\begin{itemize}
+\item Algorithmic optimizations provide substantial benefits:
+  \begin{itemize}
+  \item Bit manipulation: 6.31× improvement
+  \item U128 fast-path: 3.70× improvement
+  \item Grouped conversion: 2.91× improvement
+  \end{itemize}
+\item Micro-optimizations have limited impact for large numbers
+\item Specialized optimizations are highly effective when conditions are met
+\item Empirical validation is crucial to validate optimization effectiveness
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Web Application:} Demonstrates practical applicability with near-native performance in browser environment.
+\end{frame}
+
+\begin{frame}{Practical Recommendations}
+Based on findings, recommend:
+\begin{itemize}
+\item Implement fast-path detection for power-of-two bases with bit manipulation
+\item Use u128 arithmetic for small numbers when possible
+\item Detect and exploit aligned base relationships
+\item Prioritize code clarity over micro-optimizations for general cases
+\item Consider algorithmic improvements such as divide-and-conquer for very large numbers
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Future Work}
+\begin{itemize}
+\item Exploration of divide-and-conquer algorithms to reduce complexity below $O(n^2)$ \item SIMD optimizations for parallel processing of digits
+\item Machine learning approaches for optimization strategy selection
+\item GPU acceleration for large-scale base conversion operations
+\end{itemize}
+\end{frame}
+
+\end{document}
