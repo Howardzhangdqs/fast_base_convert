@@ -10,3 +10,6 @@ www/dist
 www/node_modules
 
 node_modules
+
+package-lock.json
+pnpm-lock.yaml
