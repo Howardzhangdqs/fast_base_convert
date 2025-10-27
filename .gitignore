@@ -1,0 +1,12 @@
+.claude
+
+target
+Cargo.lock
+
+dist
+
+www/dist
+
+www/node_modules
+
+node_modules
